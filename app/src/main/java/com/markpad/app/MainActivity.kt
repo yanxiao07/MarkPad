@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.markpad.app.ui.editor.EditorScreen
 import com.markpad.app.ui.editor.EditorViewModel
+import com.markpad.app.ui.editor.MarkdownPreviewScreen
 import com.markpad.app.ui.filemanager.FileManagerScreen
 import com.markpad.app.ui.filemanager.FileManagerViewModel
 import com.markpad.app.ui.theme.MarkPadTheme
@@ -44,8 +45,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-import com.markpad.app.ui.editor.MarkdownPreviewScreen
 
 @Composable
 fun MainLayout(
