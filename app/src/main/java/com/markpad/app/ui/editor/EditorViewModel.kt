@@ -1,13 +1,13 @@
 package com.markpad.app.ui.editor
 
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Stack
 
@@ -66,33 +66,57 @@ class EditorViewModel : ViewModel() {
     }
 
     fun loadFile(file: File) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val content = file.readText()
-                _state.value = EditorState(
-                    content = content,
-                    filePath = file.absolutePath,
-                    isSaved = true,
-                    wordCount = countWords(content)
-                )
-                undoStack.clear()
-                redoStack.clear()
+                withContext(Dispatchers.Main) {
+                    _state.value = EditorState(
+                        content = content,
+                        filePath = file.absolutePath,
+                        isSaved = true,
+                        wordCount = countWords(content)
+                    )
+                    undoStack.clear()
+                    redoStack.clear()
+                }
             } catch (e: Exception) {
                 // Handle error
             }
         }
     }
 
-    fun saveFile() {
-        val currentPath = _state.value.filePath
-        if (currentPath != null) {
-            val file = File(currentPath)
-            file.writeText(_state.value.content)
-            _state.value = _state.value.copy(isSaved = true)
+    fun importContent(name: String, content: String) {
+        _state.value = EditorState(
+            content = content,
+            filePath = null, // Imported content needs to be saved first
+            isSaved = false,
+            wordCount = countWords(content)
+        )
+        undoStack.clear()
+        redoStack.clear()
+    }
+
+    fun saveFile(context: android.content.Context, explicitFile: File? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val targetFile = explicitFile ?: _state.value.filePath?.let { File(it) }
+                if (targetFile != null) {
+                    targetFile.writeText(_state.value.content)
+                    withContext(Dispatchers.Main) {
+                        _state.value = _state.value.copy(
+                            isSaved = true,
+                            filePath = targetFile.absolutePath
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle error
+            }
         }
     }
 
     private fun countWords(text: String): Int {
-        return text.split(Regex("\\s+")).filter { it.isNotBlank() }.size
+        if (text.isBlank()) return 0
+        return text.trim().split(Regex("\\s+")).size
     }
 }

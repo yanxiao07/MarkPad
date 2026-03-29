@@ -1,8 +1,12 @@
 package com.markpad.app
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -19,7 +23,8 @@ import com.markpad.app.ui.filemanager.FileManagerScreen
 import com.markpad.app.ui.filemanager.FileManagerViewModel
 import com.markpad.app.ui.theme.MarkPadTheme
 import kotlinx.coroutines.launch
-import java.io.File
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 class MainActivity : ComponentActivity() {
     private val editorViewModel: EditorViewModel by viewModels()
@@ -36,12 +41,35 @@ class MainActivity : ComponentActivity() {
                 val windowSize = calculateWindowSizeClass(this)
                 val isExpanded = windowSize.widthSizeClass == WindowWidthSizeClass.Expanded
                 
+                val importLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.OpenDocument(),
+                    onResult = { uri: Uri? ->
+                        uri?.let { handleImport(it) }
+                    }
+                )
+
                 MainLayout(
                     isExpanded = isExpanded,
                     editorViewModel = editorViewModel,
-                    fileManagerViewModel = fileManagerViewModel
+                    fileManagerViewModel = fileManagerViewModel,
+                    onImport = {
+                        importLauncher.launch(arrayOf("text/markdown", "text/plain"))
+                    }
                 )
             }
+        }
+    }
+
+    private fun handleImport(uri: Uri) {
+        try {
+            contentResolver.openInputStream(uri)?.use { inputStream ->
+                val reader = BufferedReader(InputStreamReader(inputStream))
+                val content = reader.readText()
+                val name = uri.lastPathSegment ?: "Imported.md"
+                editorViewModel.importContent(name, content)
+            }
+        } catch (e: Exception) {
+            // Log or show error
         }
     }
 }
@@ -50,7 +78,8 @@ class MainActivity : ComponentActivity() {
 fun MainLayout(
     isExpanded: Boolean,
     editorViewModel: EditorViewModel,
-    fileManagerViewModel: FileManagerViewModel
+    fileManagerViewModel: FileManagerViewModel,
+    onImport: () -> Unit
 ) {
     var showPreview by remember { mutableStateOf(false) }
     val editorState by editorViewModel.state.collectAsState()
@@ -77,7 +106,8 @@ fun MainLayout(
                 EditorScreen(
                     viewModel = editorViewModel,
                     onToggleSidebar = {},
-                    onPreview = { showPreview = true }
+                    onPreview = { showPreview = true },
+                    onImport = onImport
                 )
             }
         } else {
@@ -98,7 +128,8 @@ fun MainLayout(
                 EditorScreen(
                     viewModel = editorViewModel,
                     onToggleSidebar = { scope.launch { drawerState.open() } },
-                    onPreview = { showPreview = true }
+                    onPreview = { showPreview = true },
+                    onImport = onImport
                 )
             }
         }
