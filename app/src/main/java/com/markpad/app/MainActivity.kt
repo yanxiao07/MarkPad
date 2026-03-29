@@ -18,6 +18,7 @@ import com.markpad.app.ui.editor.MarkdownPreviewScreen
 import com.markpad.app.ui.filemanager.FileManagerScreen
 import com.markpad.app.ui.filemanager.FileManagerViewModel
 import com.markpad.app.ui.theme.MarkPadTheme
+import kotlinx.coroutines.launch
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -28,7 +29,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Initialize file manager with internal directory or storage root
         fileManagerViewModel.loadFiles(filesDir)
 
         setContent {
@@ -66,21 +66,17 @@ fun MainLayout(
         if (isExpanded) {
             PermanentNavigationDrawer(
                 drawerContent = {
-                    PermanentDrawerSheet(
-                        modifier = Modifier.width(300.dp)
-                    ) {
+                    PermanentDrawerSheet(modifier = Modifier.width(300.dp)) {
                         FileManagerScreen(
                             viewModel = fileManagerViewModel,
-                            onFileSelected = { file ->
-                                editorViewModel.loadFile(file)
-                            }
+                            onFileSelected = { file -> editorViewModel.loadFile(file) }
                         )
                     }
                 }
             ) {
                 EditorScreen(
                     viewModel = editorViewModel,
-                    onToggleSidebar = { /* Sidebar is permanent in expanded mode */ },
+                    onToggleSidebar = {},
                     onPreview = { showPreview = true }
                 )
             }
@@ -93,7 +89,7 @@ fun MainLayout(
                             viewModel = fileManagerViewModel,
                             onFileSelected = { file ->
                                 editorViewModel.loadFile(file)
-                                // scope.launch { drawerState.close() }
+                                scope.launch { drawerState.close() }
                             }
                         )
                     }
@@ -101,9 +97,7 @@ fun MainLayout(
             ) {
                 EditorScreen(
                     viewModel = editorViewModel,
-                    onToggleSidebar = {
-                        // scope.launch { if (drawerState.isClosed) drawerState.open() else drawerState.close() }
-                    },
+                    onToggleSidebar = { scope.launch { drawerState.open() } },
                     onPreview = { showPreview = true }
                 )
             }

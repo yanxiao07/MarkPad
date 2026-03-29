@@ -1,9 +1,12 @@
 package com.markpad.app.ui.editor
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.sp
 import com.vladsch.flexmark.ast.*
 import com.vladsch.flexmark.ext.gfm.strikethrough.Strikethrough
 import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension
@@ -24,12 +27,22 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
     }
     private val parser = Parser.builder(options).build()
 
+    // 符号隐藏样式：设为透明且字号极小
+    private val hideStyle = SpanStyle(color = Color.Transparent, fontSize = 1.sp)
+
     override fun filter(text: AnnotatedString): TransformedText {
         val builder = AnnotatedString.Builder(text.text)
-        val document = parser.parse(text.text)
+        
+        // 如果文本为空，直接返回
+        if (text.text.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
 
-        for (node in document.children) {
-            applyStyle(node, builder)
+        try {
+            val document = parser.parse(text.text)
+            for (node in document.children) {
+                applyStyle(node, builder)
+            }
+        } catch (e: Exception) {
+            // 解析失败时保持原样，防止崩溃
         }
 
         return TransformedText(builder.toAnnotatedString(), OffsetMapping.Identity)
@@ -38,29 +51,52 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
     private fun applyStyle(node: Node, builder: AnnotatedString.Builder) {
         val start = node.startOffset
         val end = node.endOffset
+        
+        // 防止索引越界
+        if (start < 0 || end > builder.length) return
 
         when (node) {
             is Heading -> {
                 val style = when (node.level) {
-                    1 -> theme.h1
-                    2 -> theme.h2
-                    3 -> theme.h3
-                    4 -> theme.h4
-                    5 -> theme.h5
-                    else -> theme.h6
+                    1 -> theme.h1; 2 -> theme.h2; 3 -> theme.h3
+                    else -> theme.h4
                 }
                 builder.addStyle(style, start, end)
+                // 隐藏 # 符号
+                val opening = node.openingMarker
+                if (opening.isNotNull) {
+                    builder.addStyle(hideStyle, opening.startOffset, opening.endOffset)
+                }
             }
-            is StrongEmphasis -> builder.addStyle(theme.bold, start, end)
-            is Emphasis -> builder.addStyle(theme.italic, start, end)
-            is Strikethrough -> builder.addStyle(theme.strikethrough, start, end)
-            is Code -> builder.addStyle(theme.code, start, end)
-            is FencedCodeBlock -> builder.addStyle(theme.code, start, end)
-            is Link -> builder.addStyle(theme.link, start, end)
-            is BlockQuote -> builder.addStyle(theme.quote, start, end)
+            is StrongEmphasis -> {
+                builder.addStyle(theme.bold, start, end)
+                // 隐藏 ** 符号
+                builder.addStyle(hideStyle, start, start + 2)
+                builder.addStyle(hideStyle, end - 2, end)
+            }
+            is Emphasis -> {
+                builder.addStyle(theme.italic, start, end)
+                // 隐藏 * 或 _ 符号
+                builder.addStyle(hideStyle, start, start + 1)
+                builder.addStyle(hideStyle, end - 1, end)
+            }
+            is Code -> {
+                builder.addStyle(theme.code, start, end)
+                // 隐藏 ` 符号
+                builder.addStyle(hideStyle, start, start + 1)
+                builder.addStyle(hideStyle, end - 1, end)
+            }
+            is BlockQuote -> {
+                builder.addStyle(theme.quote, start, end)
+                // 隐藏 > 符号
+                val marker = node.openingMarker
+                if (marker.isNotNull) {
+                    builder.addStyle(hideStyle, marker.startOffset, marker.endOffset)
+                }
+            }
         }
 
-        // Recursively apply to children
+        // 递归处理子节点
         for (child in node.children) {
             applyStyle(child, builder)
         }

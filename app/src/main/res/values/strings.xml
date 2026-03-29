@@ -1,16 +1,19 @@
 <resources>
     <string name="app_name">MarkPad</string>
-    <string name="new_file">New Markdown</string>
-    <string name="open_file">Open File</string>
-    <string name="settings">Settings</string>
-    <string name="search">Search</string>
-    <string name="export_pdf">Export to PDF</string>
-    <string name="export_html">Export to HTML</string>
-    <string name="export_image">Export to Image</string>
-    <string name="share">Share</string>
-    <string name="recent_files">Recent Files</string>
-    <string name="folders">Folders</string>
-    <string name="word_count">Words: %1$d</string>
-    <string name="saved">Saved</string>
-    <string name="not_saved">Not Saved</string>
+    <string name="new_file">新建文档</string>
+    <string name="open_file">打开文件</string>
+    <string name="settings">设置</string>
+    <string name="search">搜索</string>
+    <string name="export_pdf">导出 PDF</string>
+    <string name="export_html">导出 HTML</string>
+    <string name="export_image">导出图片</string>
+    <string name="share">分享</string>
+    <string name="recent_files">最近文件</string>
+    <string name="folders">文件夹</string>
+    <string name="word_count">字数: %1$d</string>
+    <string name="saved">已保存</string>
+    <string name="not_saved">未保存</string>
+    <string name="preview">预览</string>
+    <string name="files_title">文件管理器</string>
+    <string name="untitled">无标题</string>
 </resources>
