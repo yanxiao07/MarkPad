@@ -25,7 +25,8 @@ fun EditorScreen(
     viewModel: EditorViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onToggleSidebar: () -> Unit = {},
     onPreview: () -> Unit = {},
-    onImport: () -> Unit = {}
+    onImport: () -> Unit = {},
+    onSave: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -35,7 +36,7 @@ fun EditorScreen(
     // Sync state to local value if changed from outside (undo/redo/load)
     LaunchedEffect(state.content) {
         if (state.content != textFieldValue.text) {
-            textFieldValue = textFieldValue.copy(
+            textFieldValue = TextFieldValue(
                 text = state.content,
                 selection = androidx.compose.ui.text.TextRange(state.content.length)
             )
@@ -91,7 +92,7 @@ fun EditorScreen(
                             text = { Text("保存") },
                             onClick = { 
                                 showMenu = false
-                                viewModel.saveFile(context)
+                                onSave()
                             },
                             leadingIcon = { Icon(Icons.Default.Save, null) }
                         )

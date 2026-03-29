@@ -27,10 +27,22 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
     }
     private val parser = Parser.builder(options).build()
 
-    // 符号隐藏样式：设为透明且字号极小
-    private val hideStyle = SpanStyle(color = Color.Transparent, fontSize = 1.sp)
+    // 缓存解析结果，避免重复解析
+    private var lastText: String? = null
+    private var lastTransformedText: TransformedText? = null
+
+    // 符号隐藏样式：透明且极小，接近隐藏效果
+    private val hideStyle = SpanStyle(
+        color = Color.Transparent, 
+        fontSize = 0.1.sp, // 极小字号
+        letterSpacing = (-2).sp // 负间距，进一步压缩空间
+    )
 
     override fun filter(text: AnnotatedString): TransformedText {
+        if (text.text == lastText && lastTransformedText != null) {
+            return lastTransformedText!!
+        }
+
         if (text.text.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
 
         val builder = AnnotatedString.Builder(text.text)
@@ -44,7 +56,10 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
             // Error safety
         }
 
-        return TransformedText(builder.toAnnotatedString(), OffsetMapping.Identity)
+        val result = TransformedText(builder.toAnnotatedString(), OffsetMapping.Identity)
+        lastText = text.text
+        lastTransformedText = result
+        return result
     }
 
     private fun applyStyle(node: Node, builder: AnnotatedString.Builder) {
@@ -61,44 +76,50 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
                 }
                 builder.addStyle(style, start, end)
                 // 隐藏 # 符号
-                node.openingMarker.let { 
-                    if (it.isNotNull) builder.addStyle(hideStyle, it.startOffset, it.endOffset)
+                val marker = node.openingMarker
+                if (marker.isNotNull) {
+                    builder.addStyle(hideStyle, marker.startOffset, marker.endOffset)
                 }
             }
             is StrongEmphasis -> {
                 builder.addStyle(theme.bold, start, end)
-                // 隐藏 ** 符号
-                builder.addStyle(hideStyle, start, start + 2)
-                builder.addStyle(hideStyle, end - 2, end)
+                // 隐藏 ** 或 __ 符号
+                val opening = node.openingMarker
+                val closing = node.closingMarker
+                if (opening.isNotNull) builder.addStyle(hideStyle, opening.startOffset, opening.endOffset)
+                if (closing.isNotNull) builder.addStyle(hideStyle, closing.startOffset, closing.endOffset)
             }
             is Emphasis -> {
                 builder.addStyle(theme.italic, start, end)
                 // 隐藏 * 或 _ 符号
-                builder.addStyle(hideStyle, start, start + 1)
-                builder.addStyle(hideStyle, end - 1, end)
+                val opening = node.openingMarker
+                val closing = node.closingMarker
+                if (opening.isNotNull) builder.addStyle(hideStyle, opening.startOffset, opening.endOffset)
+                if (closing.isNotNull) builder.addStyle(hideStyle, closing.startOffset, closing.endOffset)
             }
             is Code -> {
                 builder.addStyle(theme.code, start, end)
                 // 隐藏 ` 符号
-                builder.addStyle(hideStyle, start, start + 1)
-                builder.addStyle(hideStyle, end - 1, end)
+                val opening = node.openingMarker
+                val closing = node.closingMarker
+                if (opening.isNotNull) builder.addStyle(hideStyle, opening.startOffset, opening.endOffset)
+                if (closing.isNotNull) builder.addStyle(hideStyle, closing.startOffset, closing.endOffset)
             }
             is BlockQuote -> {
                 builder.addStyle(theme.quote, start, end)
                 // 隐藏 > 符号
-                node.openingMarker.let {
-                    if (it.isNotNull) builder.addStyle(hideStyle, it.startOffset, it.endOffset)
+                val marker = node.openingMarker
+                if (marker.isNotNull) {
+                    builder.addStyle(hideStyle, marker.startOffset, marker.endOffset)
                 }
             }
             is FencedCodeBlock -> {
                 builder.addStyle(theme.code, start, end)
-                // 隐藏代码块标记
-                node.openingMarker.let {
-                    if (it.isNotNull) builder.addStyle(hideStyle, it.startOffset, it.endOffset)
-                }
-                node.closingMarker.let {
-                    if (it.isNotNull) builder.addStyle(hideStyle, it.startOffset, it.endOffset)
-                }
+                // 隐藏代码块标记 ```
+                val opening = node.openingMarker
+                val closing = node.closingMarker
+                if (opening.isNotNull) builder.addStyle(hideStyle, opening.startOffset, opening.endOffset)
+                if (closing.isNotNull) builder.addStyle(hideStyle, closing.startOffset, closing.endOffset)
             }
         }
 

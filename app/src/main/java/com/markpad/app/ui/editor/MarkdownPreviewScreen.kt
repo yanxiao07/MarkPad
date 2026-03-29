@@ -21,10 +21,10 @@ fun MarkdownPreviewScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Preview") },
+                title = { Text("预览") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
                     }
                 }
             )

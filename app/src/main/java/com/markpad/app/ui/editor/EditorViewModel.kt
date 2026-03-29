@@ -25,18 +25,30 @@ class EditorViewModel : ViewModel() {
 
     private val undoStack = Stack<String>()
     private val redoStack = Stack<String>()
+    private var lastSaveTime = 0L
+    private val UNDO_DEBOUNCE_MS = 1000L // 1秒内的连续输入只存一次 undo
 
     fun onContentChange(newContent: String) {
         val oldContent = _state.value.content
         if (oldContent != newContent) {
-            undoStack.push(oldContent)
-            redoStack.clear()
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastSaveTime > UNDO_DEBOUNCE_MS) {
+                undoStack.push(oldContent)
+                redoStack.clear()
+                lastSaveTime = currentTime
+            }
             _state.value = _state.value.copy(
                 content = newContent,
                 isSaved = false,
                 wordCount = countWords(newContent)
             )
         }
+    }
+
+    fun createNewFile() {
+        _state.value = EditorState()
+        undoStack.clear()
+        redoStack.clear()
     }
 
     fun undo() {
@@ -85,10 +97,10 @@ class EditorViewModel : ViewModel() {
         }
     }
 
-    fun importContent(name: String, content: String) {
+    fun importContent(name: String, content: String, uri: String? = null) {
         _state.value = EditorState(
             content = content,
-            filePath = null, // Imported content needs to be saved first
+            filePath = uri, // Store URI for SAF-opened files
             isSaved = false,
             wordCount = countWords(content)
         )
@@ -96,18 +108,24 @@ class EditorViewModel : ViewModel() {
         redoStack.clear()
     }
 
-    fun saveFile(context: android.content.Context, explicitFile: File? = null) {
+    fun saveFile(context: android.content.Context, uri: android.net.Uri? = null) {
+        val targetUri = uri ?: _state.value.filePath?.let { android.net.Uri.parse(it) }
+        
+        if (targetUri == null) {
+            // Need to trigger SAF CreateDocument in Activity
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val targetFile = explicitFile ?: _state.value.filePath?.let { File(it) }
-                if (targetFile != null) {
-                    targetFile.writeText(_state.value.content)
-                    withContext(Dispatchers.Main) {
-                        _state.value = _state.value.copy(
-                            isSaved = true,
-                            filePath = targetFile.absolutePath
-                        )
-                    }
+                context.contentResolver.openOutputStream(targetUri, "wt")?.use { outputStream ->
+                    outputStream.write(_state.value.content.toByteArray())
+                }
+                withContext(Dispatchers.Main) {
+                    _state.value = _state.value.copy(
+                        isSaved = true,
+                        filePath = targetUri.toString()
+                    )
                 }
             } catch (e: Exception) {
                 // Handle error

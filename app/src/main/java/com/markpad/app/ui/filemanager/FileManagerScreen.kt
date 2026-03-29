@@ -56,33 +56,33 @@ class FileManagerViewModel : ViewModel() {
 fun FileManagerScreen(
     viewModel: FileManagerViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onFileSelected: (File) -> Unit = {},
+    onNewFile: () -> Unit = {},
     onClose: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val currentPath by viewModel.currentPath.collectAsState()
     val files by viewModel.files.collectAsState()
 
     LaunchedEffect(Unit) {
-        // Start from home directory or external storage
-        // For simplicity, let's just use the app's internal files dir for now
-        // But in a real app, we would use SAF (Storage Access Framework)
-        // loadFiles(context.filesDir)
+        // 初始加载应用内部存储目录
+        viewModel.loadFiles(context.filesDir)
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Files") },
+                title = { Text("文件") },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = "关闭")
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.navigateUp() }) {
-                        Icon(Icons.Default.ArrowUpward, contentDescription = "Go Up")
+                        Icon(Icons.Default.ArrowUpward, contentDescription = "向上")
                     }
-                    IconButton(onClick = { /* New File Dialog */ }) {
-                        Icon(Icons.Default.Add, contentDescription = "New File")
+                    IconButton(onClick = onNewFile) {
+                        Icon(Icons.Default.NoteAdd, contentDescription = "新建文件")
                     }
                 }
             )

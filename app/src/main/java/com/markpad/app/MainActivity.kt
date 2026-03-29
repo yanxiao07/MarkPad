@@ -48,12 +48,27 @@ class MainActivity : ComponentActivity() {
                     }
                 )
 
+                val saveLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.CreateDocument("text/markdown"),
+                    onResult = { uri: Uri? ->
+                        uri?.let { editorViewModel.saveFile(this, it) }
+                    }
+                )
+
                 MainLayout(
                     isExpanded = isExpanded,
                     editorViewModel = editorViewModel,
                     fileManagerViewModel = fileManagerViewModel,
                     onImport = {
                         importLauncher.launch(arrayOf("text/markdown", "text/plain"))
+                    },
+                    onSave = {
+                        val state = editorViewModel.state.value
+                        if (state.filePath != null) {
+                            editorViewModel.saveFile(this)
+                        } else {
+                            saveLauncher.launch("Untitled.md")
+                        }
                     }
                 )
             }
@@ -66,7 +81,7 @@ class MainActivity : ComponentActivity() {
                 val reader = BufferedReader(InputStreamReader(inputStream))
                 val content = reader.readText()
                 val name = uri.lastPathSegment ?: "Imported.md"
-                editorViewModel.importContent(name, content)
+                editorViewModel.importContent(name, content, uri.toString())
             }
         } catch (e: Exception) {
             // Log or show error
@@ -79,9 +94,11 @@ fun MainLayout(
     isExpanded: Boolean,
     editorViewModel: EditorViewModel,
     fileManagerViewModel: FileManagerViewModel,
-    onImport: () -> Unit
+    onImport: () -> Unit,
+    onSave: () -> Unit
 ) {
     var showPreview by remember { mutableStateOf(false) }
+    var isSidebarVisible by remember { mutableStateOf(true) }
     val editorState by editorViewModel.state.collectAsState()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -93,21 +110,23 @@ fun MainLayout(
         )
     } else {
         if (isExpanded) {
-            PermanentNavigationDrawer(
-                drawerContent = {
-                    PermanentDrawerSheet(modifier = Modifier.width(300.dp)) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                if (isSidebarVisible) {
+                    Box(modifier = Modifier.width(300.dp)) {
                         FileManagerScreen(
                             viewModel = fileManagerViewModel,
-                            onFileSelected = { file -> editorViewModel.loadFile(file) }
+                            onFileSelected = { file -> editorViewModel.loadFile(file) },
+                            onNewFile = { editorViewModel.createNewFile() }
                         )
                     }
+                    Divider(modifier = Modifier.fillMaxHeight().width(1.dp))
                 }
-            ) {
                 EditorScreen(
                     viewModel = editorViewModel,
-                    onToggleSidebar = {},
+                    onToggleSidebar = { isSidebarVisible = !isSidebarVisible },
                     onPreview = { showPreview = true },
-                    onImport = onImport
+                    onImport = onImport,
+                    onSave = onSave
                 )
             }
         } else {
@@ -120,6 +139,10 @@ fun MainLayout(
                             onFileSelected = { file ->
                                 editorViewModel.loadFile(file)
                                 scope.launch { drawerState.close() }
+                            },
+                            onNewFile = { 
+                                editorViewModel.createNewFile()
+                                scope.launch { drawerState.close() }
                             }
                         )
                     }
@@ -129,7 +152,8 @@ fun MainLayout(
                     viewModel = editorViewModel,
                     onToggleSidebar = { scope.launch { drawerState.open() } },
                     onPreview = { showPreview = true },
-                    onImport = onImport
+                    onImport = onImport,
+                    onSave = onSave
                 )
             }
         }
