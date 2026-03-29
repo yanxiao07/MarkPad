@@ -54,7 +54,7 @@ class FileManagerViewModel : ViewModel() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileManagerScreen(
-    viewModel: FileManagerViewModel = viewModel(),
+    viewModel: FileManagerViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onFileSelected: (File) -> Unit = {},
     onClose: () -> Unit = {}
 ) {

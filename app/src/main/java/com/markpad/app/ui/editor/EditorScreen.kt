@@ -20,7 +20,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
-    viewModel: EditorViewModel = viewModel(),
+    viewModel: EditorViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onToggleSidebar: () -> Unit = {},
     onPreview: () -> Unit = {}
 ) {

@@ -1,17 +1,17 @@
 package com.markpad.app.ui.editor
 
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import com.vladsch.flexmark.ast.*
 import com.vladsch.flexmark.ext.gfm.strikethrough.Strikethrough
-import com.vladsch.flexmark.parser.Parser
-import com.vladsch.flexmark.util.data.MutableDataSet
-import com.vladsch.flexmark.ext.tables.TablesExtension
 import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension
 import com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension
+import com.vladsch.flexmark.ext.tables.TablesExtension
+import com.vladsch.flexmark.parser.Parser
+import com.vladsch.flexmark.util.ast.Node
+import com.vladsch.flexmark.util.data.MutableDataSet
 
 class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTransformation {
 
@@ -28,7 +28,7 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
         val builder = AnnotatedString.Builder(text.text)
         val document = parser.parse(text.text)
 
-        document.children.forEach { node ->
+        for (node in document.children) {
             applyStyle(node, builder)
         }
 
@@ -61,7 +61,7 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
         }
 
         // Recursively apply to children
-        node.children.forEach { child ->
+        for (child in node.children) {
             applyStyle(child, builder)
         }
     }
