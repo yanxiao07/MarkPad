@@ -14,11 +14,7 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0.0"
-
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary true
-        }
+        vectorDrawables.useSupportLibrary true
     }
 
     buildTypes {
@@ -31,20 +27,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = '17'
-    }
-    buildFeatures {
-        compose true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.5.8'
-    }
-    packagingOptions {
-        resources {
-            excludes += '/META-INF/{AL2.0,LGPL2.1}'
-        }
-    }
+    kotlinOptions { jvmTarget = '17' }
+    buildFeatures { compose true }
+    composeOptions { kotlinCompilerExtensionVersion '1.5.8' }
 }
 
 dependencies {
@@ -53,46 +38,26 @@ dependencies {
     implementation 'androidx.activity:activity-compose:1.8.2'
     implementation platform('androidx.compose:compose-bom:2024.01.00')
     implementation 'androidx.compose.ui:ui'
-    implementation 'androidx.compose.ui:ui-graphics'
-    implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.material:material-icons-extended'
-    implementation 'androidx.navigation:navigation-compose:2.7.6'
     
-    // Window Manager for Foldables/Tablets
+    // 窗口适配
     implementation "androidx.window:window:1.2.0"
     implementation "androidx.compose.material3:material3-window-size-class"
 
-    // Room
-    def room_version = "2.6.1"
-    implementation "androidx.room:room-runtime:$room_version"
-    implementation "androidx.room:room-ktx:$room_version"
-    kapt "androidx.room:room-compiler:$room_version"
+    // Room 数据库
+    implementation "androidx.room:room-runtime:2.6.1"
+    implementation "androidx.room:room-ktx:2.6.1"
+    kapt "androidx.room:room-compiler:2.6.1"
 
-    // Markdown - Flexmark
-    def flexmark_version = "0.64.8"
-    implementation "com.vladsch.flexmark:flexmark:$flexmark_version"
-    implementation "com.vladsch.flexmark:flexmark-util-data:$flexmark_version"
-    implementation "com.vladsch.flexmark:flexmark-ext-tables:$flexmark_version"
-    implementation "com.vladsch.flexmark:flexmark-ext-gfm-strikethrough:$flexmark_version"
-    implementation "com.vladsch.flexmark:flexmark-ext-gfm-tasklist:$flexmark_version"
-    implementation "com.vladsch.flexmark:flexmark-ext-latex-util:$flexmark_version"
+    // Markdown 渲染核心 (使用最稳定的版本)
+    implementation "com.vladsch.flexmark:flexmark:0.64.8"
+    implementation "com.vladsch.flexmark:flexmark-ext-tables:0.64.8"
+    implementation "com.vladsch.flexmark:flexmark-ext-gfm-strikethrough:0.64.8"
 
-    // Image Loading
+    // 图片加载
     implementation "io.coil-kt:coil-compose:2.5.0"
 
-    // PDF Export
+    // 导出 PDF
     implementation 'com.itextpdf:itext7-core:7.2.5'
-    implementation 'com.itextpdf:html2pdf:4.0.5'
-    
-    // HTML Parsing/Cleaning
-    implementation 'org.jsoup:jsoup:1.17.2'
-
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    androidTestImplementation platform('androidx.compose:compose-bom:2024.01.00')
-    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
-    debugImplementation 'androidx.compose.ui:ui-tooling'
-    debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }
