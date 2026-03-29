@@ -10,6 +10,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // 必须添加 jitpack，因为有些 Markdown 扩展库在那儿
         maven { url 'https://jitpack.io' }
     }
 }
