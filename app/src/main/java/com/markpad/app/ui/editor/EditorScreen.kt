@@ -120,7 +120,7 @@ fun EditorScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                "版本: 1.5.0-LEGEND",
+                                "版本: 1.5.1-MYTHIC",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary
                             )
@@ -309,7 +309,7 @@ fun EditorScreen(
                 }
             }
         }
-    } { padding ->
+    ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
