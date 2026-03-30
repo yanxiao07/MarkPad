@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.markpad.app.R
+import com.markpad.app.utils.ExportUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,34 +41,19 @@ fun EditorScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showOutline by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
-    var isFocusMode by remember { mutableStateOf(false) } // 专注模式
+    var isFocusMode by remember { mutableStateOf(false) }
 
-    val handleShortcut: (KeyEvent) -> Boolean = { keyEvent ->
-        if (keyEvent.isCtrlPressed && keyEvent.type == KeyEventType.KeyDown) {
-            val action = when (keyEvent.key) {
-                Key.B -> "bold"
-                Key.I -> "italic"
-                Key.S -> { onSave(); null }
-                Key.O -> { onImport(); null }
-                Key.N -> { viewModel.createNewFile(); null }
-                else -> null
-            }
-            if (action != null) {
-                val (newText, newSelection) = applyMarkdownAction(textFieldValue, action)
-                textFieldValue = TextFieldValue(newText, newSelection)
-                viewModel.onContentChange(newText, context)
-                true
-            } else false
-        } else false
-    }
+    // Use a stable reference for the active tab content to avoid circular updates
+    val currentTabId = activeTab.id
+    val currentTabContent = activeTab.content
 
     // Sync state to local value ONLY if changed from outside (undo/redo/load/tab switch)
-    LaunchedEffect(activeTab.id, activeTab.content) {
-        if (activeTab.content != textFieldValue.text) {
+    LaunchedEffect(currentTabId, currentTabContent) {
+        if (currentTabContent != textFieldValue.text) {
             textFieldValue = textFieldValue.copy(
-                text = activeTab.content,
-                selection = if (textFieldValue.text.isEmpty() || activeTab.id != state.activeTabId) {
-                    androidx.compose.ui.text.TextRange(activeTab.content.length)
+                text = currentTabContent,
+                selection = if (textFieldValue.text.isEmpty() || currentTabId != state.activeTabId) {
+                    androidx.compose.ui.text.TextRange(currentTabContent.length)
                 } else {
                     textFieldValue.selection
                 }
@@ -99,6 +85,25 @@ fun EditorScreen(
         )
     }
 
+    val handleShortcut: (KeyEvent) -> Boolean = { keyEvent ->
+        if (keyEvent.isCtrlPressed && keyEvent.type == KeyEventType.KeyDown) {
+            val action = when (keyEvent.key) {
+                Key.B -> "bold"
+                Key.I -> "italic"
+                Key.S -> { onSave(); null }
+                Key.O -> { onImport(); null }
+                Key.N -> { viewModel.createNewFile(); null }
+                else -> null
+            }
+            if (action != null) {
+                val (newText, newSelection) = applyMarkdownAction(textFieldValue, action)
+                textFieldValue = TextFieldValue(newText, newSelection)
+                viewModel.onContentChange(newText, context)
+                true
+            } else false
+        } else false
+    }
+
     Scaffold(
         topBar = {
             Column {
@@ -110,7 +115,7 @@ fun EditorScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                "版本: 1.3.0-PREMIUM",
+                                "版本: 1.4.0-LEGACY",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary
                             )
@@ -155,6 +160,10 @@ fun EditorScreen(
                                 text = { Text("导出 PDF") },
                                 onClick = { 
                                     showMenu = false
+                                    val activeTab = state.activeTab
+                                    if (activeTab != null) {
+                                        ExportUtils.exportToPdf(context, activeTab.content, "${activeTab.title}.pdf")
+                                    }
                                 },
                                 leadingIcon = { Icon(Icons.Default.PictureAsPdf, null) }
                             )
@@ -162,6 +171,10 @@ fun EditorScreen(
                                 text = { Text("导出 HTML") },
                                 onClick = { 
                                     showMenu = false
+                                    val activeTab = state.activeTab
+                                    if (activeTab != null) {
+                                        ExportUtils.exportToHtml(context, activeTab.content, "${activeTab.title}.html")
+                                    }
                                 },
                                 leadingIcon = { Icon(Icons.Default.Html, null) }
                             )
@@ -169,6 +182,10 @@ fun EditorScreen(
                                 text = { Text("导出 Word (Doc)") },
                                 onClick = { 
                                     showMenu = false
+                                    val activeTab = state.activeTab
+                                    if (activeTab != null) {
+                                        ExportUtils.exportToDocx(context, activeTab.content, "${activeTab.title}.docx")
+                                    }
                                 },
                                 leadingIcon = { Icon(Icons.Default.Description, null) }
                             )
@@ -344,9 +361,12 @@ fun MarkdownToolbar(onAction: (String) -> Unit) {
 }
 
 @Composable
-fun ToolbarButton(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
-        Icon(icon, contentDescription = description, modifier = Modifier.size(22.dp))
+fun ToolbarButton(icon: ImageVector, description: String, onClick: () -> Unit) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(48.dp)
+    ) {
+        Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

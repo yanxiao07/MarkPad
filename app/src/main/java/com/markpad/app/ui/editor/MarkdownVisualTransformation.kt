@@ -12,8 +12,7 @@ import com.vladsch.flexmark.ext.gfm.strikethrough.Strikethrough
 import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension
 import com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension
 import com.vladsch.flexmark.ext.gfm.tasklist.TaskListItem
-import com.vladsch.flexmark.ext.tables.TableBlock
-import com.vladsch.flexmark.ext.tables.TablesExtension
+import com.vladsch.flexmark.ext.tables.*
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.ast.Node
 import com.vladsch.flexmark.util.data.MutableDataSet
@@ -137,10 +136,28 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
                 if (marker.isNotNull) {
                     builder.addStyle(hideStyle, marker.startOffset, marker.endOffset)
                 }
+                // 如果已完成，应用删除线样式
+                if (node.isDone) {
+                    builder.addStyle(theme.taskChecked, start, end)
+                }
+            }
+            is BulletListItem -> {
+                val marker = node.openingMarker
+                if (marker.isNotNull) {
+                    builder.addStyle(theme.listMarker, marker.startOffset, marker.endOffset)
+                }
+            }
+            is OrderedListItem -> {
+                val marker = node.openingMarker
+                if (marker.isNotNull) {
+                    builder.addStyle(theme.listMarker, marker.startOffset, marker.endOffset)
+                }
             }
             is TableBlock -> {
-                // 表格块基础样式
                 builder.addStyle(theme.code.copy(background = Color.LightGray.copy(alpha = 0.1f)), start, end)
+            }
+            is TableHead -> {
+                builder.addStyle(theme.tableHeader, start, end)
             }
         }
 

@@ -6,6 +6,8 @@ import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.data.MutableDataSet
 import com.vladsch.flexmark.ext.tables.TablesExtension
 import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension
+import android.os.Environment
+import android.widget.Toast
 import com.itextpdf.html2pdf.HtmlConverter
 import java.io.File
 import java.io.FileOutputStream
@@ -20,6 +22,12 @@ object ExportUtils {
     }
     private val parser = Parser.builder(options).build()
     private val renderer = HtmlRenderer.builder(options).build()
+
+    private fun getExportDir(): File {
+        val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "MarkPad")
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
 
     fun markdownToHtml(markdown: String): String {
         val document = parser.parse(markdown)
@@ -93,15 +101,39 @@ object ExportUtils {
         """.trimIndent()
     }
 
-    fun exportToPdf(context: Context, markdown: String, outputFile: File) {
-        val html = markdownToHtml(markdown)
-        val outputStream = FileOutputStream(outputFile)
-        HtmlConverter.convertToPdf(html, outputStream)
-        outputStream.close()
+    fun exportToPdf(context: Context, markdown: String, fileName: String) {
+        try {
+            val file = File(getExportDir(), if (fileName.endsWith(".pdf")) fileName else "$fileName.pdf")
+            val html = markdownToHtml(markdown)
+            FileOutputStream(file).use { outputStream ->
+                HtmlConverter.convertToPdf(html, outputStream)
+            }
+            Toast.makeText(context, "导出成功: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "导出 PDF 失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
-    fun exportToHtml(markdown: String, outputFile: File) {
-        val html = markdownToHtml(markdown)
-        outputFile.writeText(html)
+    fun exportToHtml(context: Context, markdown: String, fileName: String) {
+        try {
+            val file = File(getExportDir(), if (fileName.endsWith(".html")) fileName else "$fileName.html")
+            val html = markdownToHtml(markdown)
+            file.writeText(html)
+            Toast.makeText(context, "导出成功: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "导出 HTML 失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun exportToDocx(context: Context, markdown: String, fileName: String) {
+        try {
+            val file = File(getExportDir(), if (fileName.endsWith(".docx")) fileName else "$fileName.docx")
+            // 简化版：Docx 本质是带样式的 XML，这里先用 HTML 伪装或后续集成 POI
+            val html = markdownToHtml(markdown)
+            file.writeText(html) // 很多 Office 软件支持直接打开 HTML 格式的 Doc
+            Toast.makeText(context, "导出成功 (HTML兼容模式): ${file.absolutePath}", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "导出 Word 失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 }

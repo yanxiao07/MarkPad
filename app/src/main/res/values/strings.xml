@@ -8,12 +8,8 @@
     <string name="export_html">导出 HTML</string>
     <string name="export_image">导出图片</string>
     <string name="share">分享</string>
-    <string name="recent_files">最近文件</string>
-    <string name="folders">文件夹</string>
     <string name="word_count">字数: %1$d</string>
     <string name="saved">已保存</string>
     <string name="not_saved">未保存</string>
-    <string name="preview">预览</string>
-    <string name="files_title">文件管理器</string>
-    <string name="untitled">无标题</string>
+    <string name="untitled">未命名</string>
 </resources>

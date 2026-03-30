@@ -18,6 +18,8 @@ fun MarkdownPreviewScreen(
     markdown: String,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -30,85 +32,68 @@ fun MarkdownPreviewScreen(
             )
         }
     ) { padding ->
-        val html = ExportUtils.markdownToHtml(markdown)
+        val html = remember(markdown) { ExportUtils.markdownToHtml(markdown) }
         
-        // 使用更强大的预览配置，支持 Mermaid, MathJax, Prism.js
-        val enhancedHtml = """
+        val enhancedHtml = remember(html) {
+            """
             <!DOCTYPE html>
             <html>
             <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
                 <meta charset="UTF-8">
-                <!-- Prism.js 代码高亮 -->
                 <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
-                <!-- MathJax 数学公式 -->
                 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
                 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-                <!-- Mermaid 流程图 -->
                 <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
                 <script>
-                    mermaid.initialize({
-                        startOnLoad: true,
-                        theme: 'default',
-                        securityLevel: 'loose'
-                    });
+                    window.onload = function() {
+                        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+                    };
                 </script>
                 <style>
                     body { 
-                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-                        padding: 20px; 
+                        font-family: -apple-system, system-ui, sans-serif; 
+                        padding: 16px; 
                         line-height: 1.6; 
                         color: #333;
-                        max-width: 900px;
-                        margin: 0 auto;
+                        word-wrap: break-word;
                     }
-                    img { max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-                    table { border-collapse: collapse; width: 100%; margin: 1.5em 0; border: 1px solid #eee; }
-                    th, td { border: 1px solid #eee; padding: 12px; text-align: left; }
-                    th { background-color: #f8f9fa; font-weight: 600; }
-                    pre { border-radius: 8px; padding: 1em; overflow: auto; background: #2d2d2d !important; }
-                    blockquote { 
-                        border-left: 4px solid #42b983; 
-                        color: #666; 
-                        padding: 10px 20px; 
-                        margin: 1.5em 0;
-                        background: #f3f5f7;
-                    }
-                    hr { border: 0; border-top: 1px solid #eee; margin: 2em 0; }
-                    .task-list-item { list-style-type: none; }
-                    .task-list-item input { margin-right: 8px; }
+                    img { max-width: 100%; height: auto; display: block; margin: 10px auto; }
+                    table { border-collapse: collapse; width: 100%; overflow-x: auto; display: block; }
+                    th, td { border: 1px solid #eee; padding: 8px; }
+                    pre { background: #2d2d2d !important; padding: 12px; border-radius: 4px; overflow-x: auto; }
+                    blockquote { border-left: 4px solid #4CAF50; padding: 8px 16px; background: #f9f9f9; margin: 16px 0; }
                 </style>
             </head>
             <body>
-                <div class="markdown-body">
-                    $html
-                </div>
+                <div class="markdown-body">$html</div>
                 <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
             </body>
             </html>
-        """.trimIndent()
+            """.trimIndent()
+        }
 
         AndroidView(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            factory = { context ->
-                WebView(context).apply {
-                    webViewClient = WebViewClient()
-                    settings.apply {
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        loadWithOverviewMode = true
-                        useWideViewPort = true
-                        allowContentAccess = true
-                        allowFileAccess = true
+            factory = { ctx ->
+                WebView(ctx).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.databaseEnabled = true
+                    settings.loadWithOverviewMode = true
+                    settings.useWideViewPort = true
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            super.onPageFinished(view, url)
+                        }
                     }
-                    loadDataWithBaseURL("https://local.markpad", enhancedHtml, "text/html", "UTF-8", null)
+                    loadDataWithBaseURL("file:///android_asset/", enhancedHtml, "text/html", "UTF-8", null)
                 }
             },
             update = { webView ->
-                webView.loadDataWithBaseURL("https://local.markpad", enhancedHtml, "text/html", "UTF-8", null)
+                webView.loadDataWithBaseURL("file:///android_asset/", enhancedHtml, "text/html", "UTF-8", null)
             }
         )
     }

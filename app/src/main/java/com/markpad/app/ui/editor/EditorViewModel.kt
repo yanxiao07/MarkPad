@@ -139,9 +139,20 @@ class EditorViewModel : ViewModel() {
     }
 
     fun createNewFile() {
-        val newTab = TabItem()
-        val updatedTabs = _state.value.tabs + newTab
-        _state.value = _state.value.copy(tabs = updatedTabs, activeTabId = newTab.id)
+        viewModelScope.launch(Dispatchers.Main) {
+            val newTab = TabItem()
+            val currentTabs = _state.value.tabs
+            
+            // Avoid adding multiple empty tabs
+            if (currentTabs.any { it.content.isEmpty() && it.filePath == null }) {
+                val emptyTab = currentTabs.find { it.content.isEmpty() && it.filePath == null }
+                _state.value = _state.value.copy(activeTabId = emptyTab!!.id)
+                return@launch
+            }
+            
+            val updatedTabs = currentTabs + newTab
+            _state.value = _state.value.copy(tabs = updatedTabs, activeTabId = newTab.id)
+        }
     }
 
     fun undo() {
@@ -203,7 +214,12 @@ class EditorViewModel : ViewModel() {
                         wordCount = countWords(content),
                         outline = extractOutline(content)
                     )
-                    val updatedTabs = _state.value.tabs + newTab
+                    val currentTabs = _state.value.tabs
+                    val updatedTabs = if (currentTabs.size == 1 && currentTabs[0].content.isEmpty() && currentTabs[0].filePath == null) {
+                        listOf(newTab)
+                    } else {
+                        currentTabs + newTab
+                    }
                     _state.value = _state.value.copy(tabs = updatedTabs, activeTabId = newTab.id)
                 }
             } catch (e: Exception) {}
@@ -220,7 +236,15 @@ class EditorViewModel : ViewModel() {
                 wordCount = countWords(content),
                 outline = extractOutline(content)
             )
-            val updatedTabs = _state.value.tabs + newTab
+            
+            // If current tab is empty and unsaved, replace it instead of adding a new one
+            val currentTabs = _state.value.tabs
+            val updatedTabs = if (currentTabs.size == 1 && currentTabs[0].content.isEmpty() && currentTabs[0].filePath == null) {
+                listOf(newTab)
+            } else {
+                currentTabs + newTab
+            }
+            
             _state.value = _state.value.copy(tabs = updatedTabs, activeTabId = newTab.id)
         }
     }

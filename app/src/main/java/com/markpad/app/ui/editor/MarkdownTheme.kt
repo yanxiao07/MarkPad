@@ -24,6 +24,9 @@ data class MarkdownTheme(
     ),
     val link: SpanStyle = SpanStyle(color = Color(0xFF2196F3), textDecoration = TextDecoration.Underline),
     val quote: SpanStyle = SpanStyle(color = Color.Gray, fontStyle = FontStyle.Italic),
+    val listMarker: SpanStyle = SpanStyle(color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold),
+    val tableHeader: SpanStyle = SpanStyle(fontWeight = FontWeight.Bold, background = Color.LightGray.copy(alpha = 0.3f)),
+    val taskChecked: SpanStyle = SpanStyle(color = Color.Gray, textDecoration = TextDecoration.LineThrough),
 )
 
 object MarkdownThemes {
