@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -29,19 +30,40 @@ fun EditorScreen(
     onSave: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
+    val activeTab = state.activeTab ?: return
     val context = LocalContext.current
-    var textFieldValue by remember { mutableStateOf(TextFieldValue(state.content)) }
+    var textFieldValue by remember { mutableStateOf(TextFieldValue(activeTab.content)) }
     var showMenu by remember { mutableStateOf(false) }
-    var showOutline by remember { mutableStateOf(false) } // 大纲控制
+    var showOutline by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
+    var isFocusMode by remember { mutableStateOf(false) } // 专注模式
 
-    // Sync state to local value ONLY if changed from outside (undo/redo/load)
-    LaunchedEffect(state.content) {
-        if (state.content != textFieldValue.text) {
+    val handleShortcut: (KeyEvent) -> Boolean = { keyEvent ->
+        if (keyEvent.isCtrlPressed && keyEvent.type == KeyEventType.KeyDown) {
+            val action = when (keyEvent.key) {
+                Key.B -> "bold"
+                Key.I -> "italic"
+                Key.S -> { onSave(); null }
+                Key.O -> { onImport(); null }
+                Key.N -> { viewModel.createNewFile(); null }
+                else -> null
+            }
+            if (action != null) {
+                val (newText, newSelection) = applyMarkdownAction(textFieldValue, action)
+                textFieldValue = TextFieldValue(newText, newSelection)
+                viewModel.onContentChange(newText, context)
+                true
+            } else false
+        } else false
+    }
+
+    // Sync state to local value ONLY if changed from outside (undo/redo/load/tab switch)
+    LaunchedEffect(activeTab.id, activeTab.content) {
+        if (activeTab.content != textFieldValue.text) {
             textFieldValue = textFieldValue.copy(
-                text = state.content,
-                // Only move cursor to end if it's a completely new file/load
-                selection = if (textFieldValue.text.isEmpty()) {
-                    androidx.compose.ui.text.TextRange(state.content.length)
+                text = activeTab.content,
+                selection = if (textFieldValue.text.isEmpty() || activeTab.id != state.activeTabId) {
+                    androidx.compose.ui.text.TextRange(activeTab.content.length)
                 } else {
                     textFieldValue.selection
                 }
@@ -51,7 +73,7 @@ fun EditorScreen(
 
     if (showOutline) {
         OutlineDialog(
-            items = state.outline,
+            items = activeTab.outline,
             onDismiss = { showOutline = false },
             onNavigate = { offset ->
                 textFieldValue = textFieldValue.copy(
@@ -62,75 +84,161 @@ fun EditorScreen(
         )
     }
 
+    if (showHistory) {
+        HistoryDialog(
+            items = activeTab.history,
+            onDismiss = { showHistory = false },
+            onRestore = { versionId ->
+                viewModel.restoreVersion(versionId)
+                showHistory = false
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    Column {
-                        Text(
-                            state.filePath?.let { java.io.File(it).name } ?: stringResource(R.string.untitled),
-                            style = MaterialTheme.typography.titleMedium
+            Column {
+                TopAppBar(
+                    title = { 
+                        Column {
+                            Text(
+                                activeTab.filePath?.let { java.io.File(it).name } ?: activeTab.title,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                "版本: 1.3.0-PREMIUM",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onToggleSidebar) {
+                            Icon(Icons.Default.Menu, contentDescription = "菜单")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.undo() }) {
+                            Icon(Icons.Default.Undo, contentDescription = "撤销")
+                        }
+                        IconButton(onClick = { viewModel.redo() }) {
+                            Icon(Icons.Default.Redo, contentDescription = "重做")
+                        }
+                        IconButton(onClick = onPreview) {
+                            Icon(Icons.Default.Visibility, contentDescription = "预览")
+                        }
+                        IconButton(onClick = { showOutline = true }) {
+                            Icon(Icons.Default.List, contentDescription = "大纲")
+                        }
+                        IconButton(onClick = { 
+                            isFocusMode = !isFocusMode
+                            if (isFocusMode) onToggleSidebar() // 专注模式自动隐藏侧边栏
+                        }) {
+                            Icon(
+                                if (isFocusMode) Icons.Default.FullscreenExit else Icons.Default.Fullscreen, 
+                                contentDescription = "专注模式"
+                            )
+                        }
+                        IconButton(onClick = onSave) {
+                            Icon(Icons.Default.Save, contentDescription = "保存")
+                        }
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "更多")
+                        }
+                        
+                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("导出 PDF") },
+                                onClick = { 
+                                    showMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.PictureAsPdf, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("导出 HTML") },
+                                onClick = { 
+                                    showMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Html, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("导出 Word (Doc)") },
+                                onClick = { 
+                                    showMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Description, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("新建标签页") },
+                                onClick = { 
+                                    showMenu = false
+                                    viewModel.createNewFile()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Add, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("历史版本") },
+                                onClick = { 
+                                    showMenu = false
+                                    showHistory = true
+                                },
+                                leadingIcon = { Icon(Icons.Default.History, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("导入 .md 文件") },
+                                onClick = { 
+                                    showMenu = false
+                                    onImport()
+                                },
+                                leadingIcon = { Icon(Icons.Default.FileOpen, null) }
+                            )
+                        }
+                    }
+                )
+                
+                // Tab Bar
+                ScrollableTabRow(
+                    selectedTabIndex = state.tabs.indexOfFirst { it.id == state.activeTabId },
+                    edgePadding = 0.dp,
+                    divider = {},
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    indicator = { tabPositions ->
+                        TabRowDefaults.Indicator(
+                            Modifier.tabIndicatorOffset(tabPositions[state.tabs.indexOfFirst { it.id == state.activeTabId }])
                         )
-                        Text(
-                            "版本: 1.2.0-ULTRA",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
                     }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onToggleSidebar) {
-                        Icon(Icons.Default.Menu, contentDescription = "菜单")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.undo() }) {
-                        Icon(Icons.Default.Undo, contentDescription = "撤销")
-                    }
-                    IconButton(onClick = { viewModel.redo() }) {
-                        Icon(Icons.Default.Redo, contentDescription = "重做")
-                    }
-                    IconButton(onClick = onPreview) {
-                        Icon(Icons.Default.Visibility, contentDescription = "预览")
-                    }
-                    IconButton(onClick = { showOutline = true }) {
-                        Icon(Icons.Default.List, contentDescription = "大纲")
-                    }
-                    IconButton(onClick = onSave) {
-                        Icon(Icons.Default.Save, contentDescription = "保存")
-                    }
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "更多")
-                    }
-                    
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.export_pdf)) },
-                            onClick = { 
-                                showMenu = false
-                                // Export logic handled by MainActivity or a dedicated handler
-                            },
-                            leadingIcon = { Icon(Icons.Default.PictureAsPdf, null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("导入 .md 文件") },
-                            onClick = { 
-                                showMenu = false
-                                onImport()
-                            },
-                            leadingIcon = { Icon(Icons.Default.FileOpen, null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("保存") },
-                            onClick = { 
-                                showMenu = false
-                                onSave()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Save, null) }
+                ) {
+                    state.tabs.forEach { tab ->
+                        Tab(
+                            selected = tab.id == state.activeTabId,
+                            onClick = { viewModel.switchTab(tab.id) },
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = tab.filePath?.let { java.io.File(it).name } ?: tab.title,
+                                        maxLines = 1,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                    if (!tab.isSaved) {
+                                        Surface(
+                                            modifier = Modifier.padding(start = 4.dp).size(6.dp),
+                                            shape = androidx.compose.foundation.shape.CircleShape,
+                                            color = MaterialTheme.colorScheme.error
+                                        ) {}
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel.closeTab(tab.id) },
+                                        modifier = Modifier.size(18.dp).padding(start = 4.dp)
+                                    ) {
+                                        Icon(Icons.Default.Close, null, modifier = Modifier.size(12.dp))
+                                    }
+                                }
+                            }
                         )
                     }
                 }
-            )
+            }
         },
         bottomBar = {
             Surface(
@@ -144,12 +252,12 @@ fun EditorScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = stringResource(R.string.word_count, state.wordCount),
+                        text = stringResource(R.string.word_count, activeTab.wordCount),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.weight(1f))
-                    if (!state.isSaved) {
+                    if (!activeTab.isSaved) {
                         Text(
                             text = stringResource(R.string.not_saved),
                             color = MaterialTheme.colorScheme.error,
@@ -189,6 +297,7 @@ fun EditorScreen(
                 },
                 modifier = Modifier
                     .fillMaxSize()
+                    .onKeyEvent { handleShortcut(it) }
                     .padding(16.dp),
                 textStyle = TextStyle(
                     fontSize = 18.sp,
@@ -303,6 +412,38 @@ fun OutlineDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("关闭") }
+        }
+    )
+}
+
+@Composable
+fun HistoryDialog(
+    items: List<VersionItem>,
+    onDismiss: () -> Unit,
+    onRestore: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("历史版本") },
+        text = {
+            if (items.isEmpty()) {
+                Text("暂无保存记录")
+            } else {
+                LazyColumn {
+                    items(items.reversed()) { item ->
+                        ListItem(
+                            headlineContent = { 
+                                Text(java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(item.timestamp))) 
+                            },
+                            supportingContent = { Text("内容长度: ${item.content.length} 字符") },
+                            modifier = Modifier.clickable { onRestore(item.id) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
         }
     )
 }

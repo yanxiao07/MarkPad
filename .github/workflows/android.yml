@@ -20,16 +20,20 @@ jobs:
 
       - name: Build with Gradle
         run: |
-          # 如果没有 gradlew，现场生成一个，这是最保险的办法
+          # 强制删除所有可能缓存的旧产物目录
+          rm -rf app/build/outputs/apk/debug/*
+
+          # 如果没有 gradlew，现场生成一个
           if [ ! -f gradlew ]; then
             gradle wrapper --gradle-version 8.2
           fi
           chmod +x gradlew
-          # 核心编译指令：先 clean，再编译
+
+          # 核心编译指令：执行 clean 并重新 assemble
           ./gradlew clean assembleDebug --no-daemon -x test -x lint
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MarkPad-ULTRA-v1.2.0
+          name: MarkPad-PREMIUM-v1.3.0
           path: app/build/outputs/apk/debug/MarkPad_*.apk

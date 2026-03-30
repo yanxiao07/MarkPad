@@ -12,14 +12,30 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Stack
 
-data class EditorState(
+data class VersionItem(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val content: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class TabItem(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val title: String = "未命名",
     val content: String = "",
     val filePath: String? = null,
     val isSaved: Boolean = true,
     val wordCount: Int = 0,
-    val theme: MarkdownTheme = MarkdownThemes.Default,
-    val outline: List<OutlineItem> = emptyList()
+    val outline: List<OutlineItem> = emptyList(),
+    val history: List<VersionItem> = emptyList()
 )
+
+data class EditorState(
+    val tabs: List<TabItem> = listOf(TabItem()),
+    val activeTabId: String = tabs[0].id,
+    val theme: MarkdownTheme = MarkdownThemes.Default
+) {
+    val activeTab: TabItem? get() = tabs.find { it.id == activeTabId }
+}
 
 data class OutlineItem(
     val title: String,
@@ -31,39 +47,74 @@ class EditorViewModel : ViewModel() {
     private val _state = MutableStateFlow(EditorState())
     val state: StateFlow<EditorState> = _state.asStateFlow()
 
-    private val undoStack = Stack<String>()
-    private val redoStack = Stack<String>()
-    private var lastSaveTime = 0L
-    private val UNDO_DEBOUNCE_MS = 1000L // 1秒内的连续输入只存一次 undo
+    private val undoStacks = mutableMapOf<String, Stack<String>>()
+    private val redoStacks = mutableMapOf<String, Stack<String>>()
+    private var lastSaveTimes = mutableMapOf<String, Long>()
+    private val UNDO_DEBOUNCE_MS = 1000L
     
     private var autoSaveJob: Job? = null
-    private val AUTO_SAVE_DELAY_MS = 2000L // 2秒无输入自动保存
+    private val AUTO_SAVE_DELAY_MS = 2000L
 
     fun onContentChange(newContent: String, context: android.content.Context? = null) {
-        val oldContent = _state.value.content
+        val activeTabId = _state.value.activeTabId
+        val activeTab = _state.value.activeTab ?: return
+        val oldContent = activeTab.content
+
         if (oldContent != newContent) {
             val currentTime = System.currentTimeMillis()
-            if (currentTime - lastSaveTime > UNDO_DEBOUNCE_MS) {
-                undoStack.push(oldContent)
-                redoStack.clear()
-                lastSaveTime = currentTime
-            }
-            _state.value = _state.value.copy(
-                content = newContent,
-                isSaved = false,
-                wordCount = countWords(newContent),
-                outline = extractOutline(newContent)
-            )
+            val lastSaveTime = lastSaveTimes[activeTabId] ?: 0L
             
-            // 自动保存逻辑
+            if (currentTime - lastSaveTime > UNDO_DEBOUNCE_MS) {
+                undoStacks.getOrPut(activeTabId) { Stack() }.push(oldContent)
+                redoStacks[activeTabId]?.clear()
+                lastSaveTimes[activeTabId] = currentTime
+            }
+
+            val updatedTabs = _state.value.tabs.map {
+                if (it.id == activeTabId) {
+                    it.copy(
+                        content = newContent,
+                        isSaved = false,
+                        wordCount = countWords(newContent),
+                        outline = extractOutline(newContent)
+                    )
+                } else it
+            }
+            _state.value = _state.value.copy(tabs = updatedTabs)
+            
+            // Auto Save
             autoSaveJob?.cancel()
-            if (context != null && _state.value.filePath != null) {
+            if (context != null && activeTab.filePath != null) {
                 autoSaveJob = viewModelScope.launch {
                     delay(AUTO_SAVE_DELAY_MS)
                     saveFile(context)
                 }
             }
         }
+    }
+
+    fun switchTab(tabId: String) {
+        _state.value = _state.value.copy(activeTabId = tabId)
+    }
+
+    fun closeTab(tabId: String) {
+        val currentTabs = _state.value.tabs
+        if (currentTabs.size <= 1) {
+            createNewFile()
+            return
+        }
+        
+        val updatedTabs = currentTabs.filter { it.id != tabId }
+        val newActiveId = if (tabId == _state.value.activeTabId) {
+            updatedTabs.first().id
+        } else {
+            _state.value.activeTabId
+        }
+        
+        _state.value = _state.value.copy(tabs = updatedTabs, activeTabId = newActiveId)
+        undoStacks.remove(tabId)
+        redoStacks.remove(tabId)
+        lastSaveTimes.remove(tabId)
     }
 
     private fun extractOutline(content: String): List<OutlineItem> {
@@ -87,34 +138,54 @@ class EditorViewModel : ViewModel() {
     }
 
     fun createNewFile() {
-        _state.value = EditorState()
-        undoStack.clear()
-        redoStack.clear()
+        val newTab = TabItem()
+        val updatedTabs = _state.value.tabs + newTab
+        _state.value = _state.value.copy(tabs = updatedTabs, activeTabId = newTab.id)
     }
 
     fun undo() {
-        if (undoStack.isNotEmpty()) {
-            val currentContent = _state.value.content
-            redoStack.push(currentContent)
-            val previousContent = undoStack.pop()
-            _state.value = _state.value.copy(
-                content = previousContent,
-                isSaved = false,
-                wordCount = countWords(previousContent)
-            )
+        val activeId = _state.value.activeTabId
+        val stack = undoStacks[activeId]
+        if (stack != null && stack.isNotEmpty()) {
+            val activeTab = _state.value.activeTab ?: return
+            val currentContent = activeTab.content
+            redoStacks.getOrPut(activeId) { Stack() }.push(currentContent)
+            val previousContent = stack.pop()
+            
+            val updatedTabs = _state.value.tabs.map {
+                if (it.id == activeId) {
+                    it.copy(
+                        content = previousContent,
+                        isSaved = false,
+                        wordCount = countWords(previousContent),
+                        outline = extractOutline(previousContent)
+                    )
+                } else it
+            }
+            _state.value = _state.value.copy(tabs = updatedTabs)
         }
     }
 
     fun redo() {
-        if (redoStack.isNotEmpty()) {
-            val currentContent = _state.value.content
-            undoStack.push(currentContent)
-            val nextContent = redoStack.pop()
-            _state.value = _state.value.copy(
-                content = nextContent,
-                isSaved = false,
-                wordCount = countWords(nextContent)
-            )
+        val activeId = _state.value.activeTabId
+        val stack = redoStacks[activeId]
+        if (stack != null && stack.isNotEmpty()) {
+            val activeTab = _state.value.activeTab ?: return
+            val currentContent = activeTab.content
+            undoStacks.getOrPut(activeId) { Stack() }.push(currentContent)
+            val nextContent = stack.pop()
+            
+            val updatedTabs = _state.value.tabs.map {
+                if (it.id == activeId) {
+                    it.copy(
+                        content = nextContent,
+                        isSaved = false,
+                        wordCount = countWords(nextContent),
+                        outline = extractOutline(nextContent)
+                    )
+                } else it
+            }
+            _state.value = _state.value.copy(tabs = updatedTabs)
         }
     }
 
@@ -123,64 +194,73 @@ class EditorViewModel : ViewModel() {
             try {
                 val content = file.readText()
                 withContext(Dispatchers.Main) {
-                    _state.value = EditorState(
+                    val newTab = TabItem(
+                        title = file.name,
                         content = content,
                         filePath = file.absolutePath,
                         isSaved = true,
-                        wordCount = countWords(content)
+                        wordCount = countWords(content),
+                        outline = extractOutline(content)
                     )
-                    undoStack.clear()
-                    redoStack.clear()
-                    // 自动更新最近文件等逻辑可以在这里扩展
+                    val updatedTabs = _state.value.tabs + newTab
+                    _state.value = _state.value.copy(tabs = updatedTabs, activeTabId = newTab.id)
                 }
-            } catch (e: Exception) {
-                // Handle error
-            }
+            } catch (e: Exception) {}
         }
     }
 
     fun importContent(name: String, content: String, uri: String? = null) {
         viewModelScope.launch(Dispatchers.Main) {
-            _state.value = EditorState(
+            val newTab = TabItem(
+                title = name,
                 content = content,
-                filePath = uri, // Store URI for SAF-opened files
-                isSaved = true, // 刚导入的文件视为已保存状态，除非修改
-                wordCount = countWords(content)
+                filePath = uri,
+                isSaved = true,
+                wordCount = countWords(content),
+                outline = extractOutline(content)
             )
-            undoStack.clear()
-            redoStack.clear()
+            val updatedTabs = _state.value.tabs + newTab
+            _state.value = _state.value.copy(tabs = updatedTabs, activeTabId = newTab.id)
         }
     }
 
     fun saveFile(context: android.content.Context, uri: android.net.Uri? = null) {
-        val pathOrUri = _state.value.filePath
+        val activeTab = _state.value.activeTab ?: return
+        val pathOrUri = activeTab.filePath ?: uri?.toString() ?: return
         
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // 如果传入了新的 URI (SAF)，或者路径是 content:// 开头的 (之前导入的)
-                if (uri != null || (pathOrUri != null && pathOrUri.startsWith("content://"))) {
-                    val targetUri = uri ?: android.net.Uri.parse(pathOrUri)
-                    context.contentResolver.openOutputStream(targetUri, "rwt")?.use { outputStream ->
-                        outputStream.write(_state.value.content.toByteArray())
+                if (pathOrUri.startsWith("content://")) {
+                    val targetUri = android.net.Uri.parse(pathOrUri)
+                    context.contentResolver.openOutputStream(targetUri, "rwt")?.use { 
+                        it.write(activeTab.content.toByteArray()) 
                     }
-                    withContext(Dispatchers.Main) {
-                        _state.value = _state.value.copy(
-                            isSaved = true,
-                            filePath = targetUri.toString()
-                        )
-                    }
-                } else if (pathOrUri != null) {
-                    // 普通文件路径 (内部存储)
-                    val file = File(pathOrUri)
-                    file.writeText(_state.value.content)
-                    withContext(Dispatchers.Main) {
-                        _state.value = _state.value.copy(isSaved = true)
-                    }
+                } else {
+                    File(pathOrUri).writeText(activeTab.content)
                 }
-            } catch (e: Exception) {
-                // Handle error
-            }
+                
+                withContext(Dispatchers.Main) {
+                    val newVersion = VersionItem(content = activeTab.content)
+                    val updatedTabs = _state.value.tabs.map {
+                        if (it.id == activeTab.id) {
+                            it.copy(
+                                isSaved = true, 
+                                filePath = pathOrUri,
+                                history = (it.history + newVersion).takeLast(10) // Keep last 10 versions
+                            )
+                        } else it
+                    }
+                    _state.value = _state.value.copy(tabs = updatedTabs)
+                }
+            } catch (e: Exception) {}
         }
+    }
+
+    fun restoreVersion(versionId: String) {
+        val activeTab = _state.value.activeTab ?: return
+        val version = activeTab.history.find { it.id == versionId } ?: return
+        
+        onContentChange(version.content)
     }
 
     private fun countWords(text: String): Int {

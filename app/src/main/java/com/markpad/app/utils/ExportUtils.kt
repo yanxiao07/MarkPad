@@ -25,25 +25,69 @@ object ExportUtils {
         val document = parser.parse(markdown)
         val contentHtml = renderer.render(document)
         
-        // Wrap in basic HTML structure with styling
+        // Wrap in professional GitHub-style HTML structure
         return """
             <!DOCTYPE html>
             <html>
             <head>
                 <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
                 <style>
-                    body { font-family: sans-serif; padding: 40px; line-height: 1.6; color: #333; }
-                    h1, h2, h3 { color: #000; }
-                    code { background: #f4f4f4; padding: 2px 4px; border-radius: 4px; }
-                    pre { background: #f4f4f4; padding: 10px; overflow-x: auto; }
-                    table { border-collapse: collapse; width: 100%; }
-                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                    th { background-color: #f2f2f2; }
-                    blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #777; }
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; 
+                        padding: 45px; 
+                        line-height: 1.6; 
+                        color: #24292e; 
+                        max-width: 800px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                    }
+                    h1, h2, h3, h4, h5, h6 { 
+                        margin-top: 24px; 
+                        margin-bottom: 16px; 
+                        font-weight: 600; 
+                        line-height: 1.25; 
+                        border-bottom: 1px solid #eaecef;
+                        padding-bottom: .3em;
+                    }
+                    code { 
+                        background-color: rgba(27,31,35,.05); 
+                        padding: .2em .4em; 
+                        border-radius: 3px; 
+                        font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace;
+                        font-size: 85%;
+                    }
+                    pre { 
+                        background-color: #f6f8fa; 
+                        padding: 16px; 
+                        overflow: auto; 
+                        border-radius: 6px;
+                        line-height: 1.45;
+                    }
+                    table { 
+                        border-collapse: collapse; 
+                        width: 100%; 
+                        margin-bottom: 16px;
+                    }
+                    th, td { 
+                        border: 1px solid #dfe2e5; 
+                        padding: 6px 13px; 
+                    }
+                    tr:nth-child(2n) { background-color: #f6f8fa; }
+                    blockquote { 
+                        border-left: .25em solid #dfe2e5; 
+                        padding: 0 1em; 
+                        color: #6a737d; 
+                        margin: 0 0 16px 0;
+                    }
+                    img { max-width: 100%; box-sizing: content-box; background-color: #fff; }
+                    hr { height: .25em; padding: 0; margin: 24px 0; background-color: #e1e4e8; border: 0; }
                 </style>
             </head>
             <body>
-                $contentHtml
+                <div class="markdown-body">
+                    $contentHtml
+                </div>
             </body>
             </html>
         """.trimIndent()
