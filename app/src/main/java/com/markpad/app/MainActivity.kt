@@ -63,8 +63,8 @@ class MainActivity : ComponentActivity() {
                         importLauncher.launch(arrayOf("text/markdown", "text/plain"))
                     },
                     onSave = {
-                        val state = editorViewModel.state.value
-                        if (state.filePath != null) {
+                        val activeTab = editorViewModel.state.value.activeTab
+                        if (activeTab?.filePath != null) {
                             editorViewModel.saveFile(this)
                         } else {
                             saveLauncher.launch("Untitled.md")
@@ -105,7 +105,7 @@ fun MainLayout(
     
     if (showPreview) {
         MarkdownPreviewScreen(
-            markdown = editorState.content,
+            markdown = editorState.activeTab?.content ?: "",
             onBack = { showPreview = false }
         )
     } else {

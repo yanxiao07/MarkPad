@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -383,7 +384,7 @@ private fun applyMarkdownAction(current: TextFieldValue, action: String): Pair<S
 
 @Composable
 fun OutlineDialog(
-    items: List<OutlineItem>,
+    outlineItems: List<OutlineItem>,
     onDismiss: () -> Unit,
     onNavigate: (Int) -> Unit
 ) {
@@ -391,11 +392,11 @@ fun OutlineDialog(
         onDismissRequest = onDismiss,
         title = { Text("文档大纲") },
         text = {
-            if (items.isEmpty()) {
+            if (outlineItems.isEmpty()) {
                 Text("暂无标题")
             } else {
                 LazyColumn {
-                    items(items) { item ->
+                    items(outlineItems) { item ->
                         Text(
                             text = item.title,
                             modifier = Modifier
@@ -421,7 +422,7 @@ fun OutlineDialog(
 
 @Composable
 fun HistoryDialog(
-    items: List<VersionItem>,
+    historyItems: List<VersionItem>,
     onDismiss: () -> Unit,
     onRestore: (String) -> Unit
 ) {
@@ -429,11 +430,11 @@ fun HistoryDialog(
         onDismissRequest = onDismiss,
         title = { Text("历史版本") },
         text = {
-            if (items.isEmpty()) {
+            if (historyItems.isEmpty()) {
                 Text("暂无保存记录")
             } else {
                 LazyColumn {
-                    val reversedList: List<VersionItem> = items.reversed()
+                    val reversedList: List<VersionItem> = historyItems.reversed()
                     items(reversedList) { item ->
                         ListItem(
                             headlineContent = { 
