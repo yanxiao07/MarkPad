@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -120,7 +122,7 @@ fun EditorScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                "版本: 1.5.2-DIVINE",
+                                "版本: 1.5.3-ETERNAL",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary
                             )
@@ -329,8 +331,8 @@ fun EditorScreen(
                         .fillMaxWidth()
                         .onKeyEvent { handleShortcut(it) }
                         .padding(16.dp)
-                        .androidx.compose.ui.input.pointer.pointerInput(Unit) {
-                            androidx.compose.foundation.gestures.detectTransformGestures { _: androidx.compose.ui.geometry.Offset, _: androidx.compose.ui.geometry.Offset, zoom: Float, _: Float ->
+                        .pointerInput(Unit) {
+                            detectTransformGestures { _: androidx.compose.ui.geometry.Offset, _: androidx.compose.ui.geometry.Offset, zoom: Float, _: Float ->
                                 if (zoom != 1f) {
                                     val newSize = baseFontSize * zoom
                                     // 限制字体范围

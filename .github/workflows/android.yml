@@ -35,5 +35,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MarkPad-DIVINE-v1.5.2
+          name: MarkPad-ETERNAL-v1.5.3
           path: app/build/outputs/apk/debug/MarkPad_*.apk
