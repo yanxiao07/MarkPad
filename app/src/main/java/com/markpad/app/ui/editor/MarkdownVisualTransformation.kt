@@ -8,6 +8,7 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.sp
 import com.vladsch.flexmark.ast.*
+import com.vladsch.flexmark.ast.ThematicBreak
 import com.vladsch.flexmark.ext.gfm.strikethrough.Strikethrough
 import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension
 import com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension
@@ -20,7 +21,6 @@ import com.vladsch.flexmark.ext.admonition.AdmonitionBlock
 import com.vladsch.flexmark.ext.tables.*
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.ast.Node
-import com.vladsch.flexmark.util.ast.ThematicBreak
 import com.vladsch.flexmark.util.data.MutableDataSet
 
 class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTransformation {

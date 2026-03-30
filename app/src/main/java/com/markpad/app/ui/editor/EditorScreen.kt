@@ -122,7 +122,7 @@ fun EditorScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                "版本: 1.5.3-ETERNAL",
+                                "版本: 1.5.4-ULTIMATE",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary
                             )
@@ -332,7 +332,7 @@ fun EditorScreen(
                         .onKeyEvent { handleShortcut(it) }
                         .padding(16.dp)
                         .pointerInput(Unit) {
-                            detectTransformGestures { _: androidx.compose.ui.geometry.Offset, _: androidx.compose.ui.geometry.Offset, zoom: Float, _: Float ->
+                            detectTransformGestures { _, _, zoom, _ ->
                                 if (zoom != 1f) {
                                     val newSize = baseFontSize * zoom
                                     // 限制字体范围
