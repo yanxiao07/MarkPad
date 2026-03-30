@@ -77,7 +77,7 @@ fun EditorScreen(
 
     if (showOutline) {
         OutlineDialog(
-            items = activeTab.outline,
+            outlineItems = activeTab.outline,
             onDismiss = { showOutline = false },
             onNavigate = { offset ->
                 textFieldValue = textFieldValue.copy(
@@ -90,7 +90,7 @@ fun EditorScreen(
 
     if (showHistory) {
         HistoryDialog(
-            items = activeTab.history,
+            historyItems = activeTab.history,
             onDismiss = { showHistory = false },
             onRestore = { versionId ->
                 viewModel.restoreVersion(versionId)
