@@ -35,5 +35,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MarkPad-LEGACY-v1.4.0
+          name: MarkPad-LEGEND-v1.5.0
           path: app/build/outputs/apk/debug/MarkPad_*.apk

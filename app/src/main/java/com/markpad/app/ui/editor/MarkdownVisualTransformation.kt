@@ -12,10 +12,16 @@ import com.vladsch.flexmark.ext.gfm.strikethrough.Strikethrough
 import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension
 import com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension
 import com.vladsch.flexmark.ext.gfm.tasklist.TaskListItem
+import com.vladsch.flexmark.ext.gitlab.GitLabExtension
+import com.vladsch.flexmark.ext.gitlab.GitLabInlineMath
+import com.vladsch.flexmark.ext.gitlab.GitLabBlockQuote
+import com.vladsch.flexmark.ext.admonition.AdmonitionExtension
+import com.vladsch.flexmark.ext.admonition.AdmonitionBlock
 import com.vladsch.flexmark.ext.tables.*
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.ast.Node
 import com.vladsch.flexmark.util.data.MutableDataSet
+import com.vladsch.flexmark.util.ast.ThematicBreak
 
 class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTransformation {
 
@@ -23,7 +29,9 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
         set(Parser.EXTENSIONS, listOf(
             TablesExtension.create(),
             StrikethroughExtension.create(),
-            TaskListExtension.create()
+            TaskListExtension.create(),
+            GitLabExtension.create(),
+            AdmonitionExtension.create()
         ))
     }
     private val parser = Parser.builder(options).build()
@@ -116,10 +124,12 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
             }
             is FencedCodeBlock -> {
                 builder.addStyle(theme.code, start, end)
-                // 隐藏代码块标记 ```
+                // 隐藏代码块标记 ``` 和 语言标识
                 val opening = node.openingMarker
                 val closing = node.closingMarker
+                val info = node.info
                 if (opening.isNotNull) builder.addStyle(hideStyle, opening.startOffset, opening.endOffset)
+                if (info.isNotNull) builder.addStyle(hideStyle, info.startOffset, info.endOffset)
                 if (closing.isNotNull) builder.addStyle(hideStyle, closing.startOffset, closing.endOffset)
             }
             is Strikethrough -> {
@@ -137,7 +147,7 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
                     builder.addStyle(hideStyle, marker.startOffset, marker.endOffset)
                 }
                 // 如果已完成，应用删除线样式
-                if (node.isDone) {
+                if (node.isItemDoneMarker()) {
                     builder.addStyle(theme.taskChecked, start, end)
                 }
             }
@@ -158,6 +168,36 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
             }
             is TableHead -> {
                 builder.addStyle(theme.tableHeader, start, end)
+            }
+            is ThematicBreak -> {
+                builder.addStyle(theme.code.copy(color = Color.Gray), start, end)
+            }
+            is Link -> {
+                builder.addStyle(theme.link, start, end)
+                // 隐藏 [ ] ( ) 和 URL
+                val opening = node.textOpeningMarker
+                val closing = node.textClosingMarker
+                val urlOpening = node.linkOpeningMarker
+                val urlClosing = node.linkClosingMarker
+                if (opening.isNotNull) builder.addStyle(hideStyle, opening.startOffset, opening.endOffset)
+                if (closing.isNotNull) builder.addStyle(hideStyle, closing.startOffset, closing.endOffset)
+                if (urlOpening.isNotNull && urlClosing.isNotNull) {
+                    builder.addStyle(hideStyle, urlOpening.startOffset, urlClosing.endOffset)
+                }
+            }
+            is Image -> {
+                builder.addStyle(theme.link.copy(color = Color(0xFF4CAF50)), start, end)
+            }
+            is GitLabInlineMath -> {
+                builder.addStyle(theme.code.copy(color = Color(0xFF9C27B0)), start, end)
+                // 隐藏 $ 符号
+                val opening = node.openingMarker
+                val closing = node.closingMarker
+                if (opening.isNotNull) builder.addStyle(hideStyle, opening.startOffset, opening.endOffset)
+                if (closing.isNotNull) builder.addStyle(hideStyle, closing.startOffset, closing.endOffset)
+            }
+            is AdmonitionBlock -> {
+                builder.addStyle(theme.quote.copy(color = Color(0xFF607D8B)), start, end)
             }
         }
 

@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -42,6 +43,8 @@ fun EditorScreen(
     var showOutline by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var isFocusMode by remember { mutableStateOf(false) }
+    var baseFontSize by remember { mutableStateOf(18f) }
+    val scaleFactor = remember { mutableFloatStateOf(1f) }
 
     // Use a stable reference for the active tab content to avoid circular updates
     val currentTabId = activeTab.id
@@ -93,6 +96,8 @@ fun EditorScreen(
                 Key.S -> { onSave(); null }
                 Key.O -> { onImport(); null }
                 Key.N -> { viewModel.createNewFile(); null }
+                Key.Plus, Key.Equals -> { baseFontSize += 2; null }
+                Key.Minus -> { if (baseFontSize > 10) baseFontSize -= 2; null }
                 else -> null
             }
             if (action != null) {
@@ -115,7 +120,7 @@ fun EditorScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                "版本: 1.4.0-LEGACY",
+                                "版本: 1.5.0-LEGEND",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary
                             )
@@ -156,6 +161,16 @@ fun EditorScreen(
                         }
                         
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("字体变大") },
+                                onClick = { baseFontSize += 2; showMenu = false },
+                                leadingIcon = { Icon(Icons.Default.Add, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("字体变小") },
+                                onClick = { if (baseFontSize > 10) baseFontSize -= 2; showMenu = false },
+                                leadingIcon = { Icon(Icons.Default.Remove, null) }
+                            )
                             DropdownMenuItem(
                                 text = { Text("导出 PDF") },
                                 onClick = { 
@@ -294,43 +309,57 @@ fun EditorScreen(
                 }
             }
         }
-    ) { padding ->
-        Column(
+    } { padding ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding() // 自动适配软键盘
         ) {
-            // Editor Toolbar
-            MarkdownToolbar(
-                onAction = { action ->
-                    val (newText, newSelection) = applyMarkdownAction(textFieldValue, action)
-                    textFieldValue = TextFieldValue(newText, newSelection)
-                    viewModel.onContentChange(newText, context)
-                }
-            )
-
-            // Main Editor
-            BasicTextField(
-                value = textFieldValue,
-                onValueChange = {
-                    textFieldValue = it
-                    viewModel.onContentChange(it.text, context)
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .onKeyEvent { handleShortcut(it) }
-                    .padding(16.dp),
-                textStyle = TextStyle(
-                    fontSize = 18.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 28.sp
-                ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                visualTransformation = MarkdownVisualTransformation(state.theme),
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Main Editor
+                BasicTextField(
+                    value = textFieldValue,
+                    onValueChange = {
+                        textFieldValue = it
+                        viewModel.onContentChange(it.text, context)
+                    },
+                    modifier = Modifier
+                        .weight(1f) // 占据剩余空间
+                        .fillMaxWidth()
+                        .onKeyEvent { handleShortcut(it) }
+                        .padding(16.dp)
+                        .androidx.compose.ui.input.pointer.pointerInput(Unit) {
+                            androidx.compose.foundation.gestures.detectTransformGestures { _, _, zoom, _ ->
+                                if (zoom != 1f) {
+                                    baseFontSize *= zoom
+                                    // 限制字体范围
+                                    if (baseFontSize < 10f) baseFontSize = 10f
+                                    if (baseFontSize > 40f) baseFontSize = 40f
+                                }
+                            }
+                        },
+                    textStyle = TextStyle(
+                        fontSize = baseFontSize.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = (baseFontSize * 1.5).sp
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    visualTransformation = MarkdownVisualTransformation(state.theme),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences
+                    )
                 )
-            )
+
+                // Editor Toolbar - Now at bottom above keyboard
+                MarkdownToolbar(
+                    onAction = { action ->
+                        val (newText, newSelection) = applyMarkdownAction(textFieldValue, action)
+                        textFieldValue = TextFieldValue(newText, newSelection)
+                        viewModel.onContentChange(newText, context)
+                    }
+                )
+            }
         }
     }
 }
@@ -346,15 +375,15 @@ fun MarkdownToolbar(onAction: (String) -> Unit) {
     ) {
         ToolbarButton(Icons.Default.FormatBold, "加粗") { onAction("bold") }
         ToolbarButton(Icons.Default.FormatItalic, "斜体") { onAction("italic") }
-        ToolbarButton(Icons.Default.StrikethroughS, "删除线") { onAction("strikethrough") }
+        ToolbarButton(Icons.Default.FormatStrikethrough, "删除线") { onAction("strikethrough") }
         ToolbarButton(Icons.Default.FormatListBulleted, "无序列表") { onAction("list") }
         ToolbarButton(Icons.Default.FormatListNumbered, "有序列表") { onAction("ordered_list") }
         ToolbarButton(Icons.Default.CheckBox, "待办列表") { onAction("task") }
         ToolbarButton(Icons.Default.FormatQuote, "引用") { onAction("quote") }
         ToolbarButton(Icons.Default.Code, "行内代码") { onAction("code") }
-        ToolbarButton(Icons.Default.IntegrationInstructions, "代码块") { onAction("fenced_code") }
+        ToolbarButton(Icons.Default.Terminal, "代码块") { onAction("fenced_code") }
         ToolbarButton(Icons.Default.Link, "链接") { onAction("link") }
-        ToolbarButton(Icons.Default.TableChart, "表格") { onAction("table") }
+        ToolbarButton(Icons.Default.ViewModule, "表格") { onAction("table") }
         ToolbarButton(Icons.Default.Title, "标题") { onAction("h1") }
         ToolbarButton(Icons.Default.HorizontalRule, "分割线") { onAction("hr") }
     }

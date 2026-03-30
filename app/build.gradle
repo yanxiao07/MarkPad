@@ -12,8 +12,8 @@ android {
         applicationId "com.markpad.app"
         minSdk 26
         targetSdk 34
-        versionCode 5
-        versionName "1.4.0-LEGACY"
+        versionCode 6
+        versionName "1.5.0-LEGEND"
         vectorDrawables.useSupportLibrary true
     }
 
@@ -69,6 +69,8 @@ dependencies {
     implementation "com.vladsch.flexmark:flexmark-ext-tables:$flexmark_version"
     implementation "com.vladsch.flexmark:flexmark-ext-gfm-strikethrough:$flexmark_version"
     implementation "com.vladsch.flexmark:flexmark-ext-gfm-tasklist:$flexmark_version"
+    implementation "com.vladsch.flexmark:flexmark-ext-gitlab:$flexmark_version"
+    implementation "com.vladsch.flexmark:flexmark-ext-admonition:$flexmark_version"
 
     // 图片加载
     implementation "io.coil-kt:coil-compose:2.5.0"

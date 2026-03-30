@@ -32,7 +32,7 @@ data class TabItem(
 
 data class EditorState(
     val tabs: List<TabItem> = listOf(TabItem()),
-    val activeTabId: String = tabs[0].id,
+    val activeTabId: String = if (tabs.isNotEmpty()) tabs[0].id else "",
     val theme: MarkdownTheme = MarkdownThemes.Default
 ) {
     val activeTab: TabItem? get() = tabs.find { it.id == activeTabId }
@@ -55,6 +55,7 @@ class EditorViewModel : ViewModel() {
     
     private var autoSaveJob: Job? = null
     private val AUTO_SAVE_DELAY_MS = 2000L
+    private val VERSION_HISTORY_DEBOUNCE_MS = 300000L // 5 minutes for auto-versioning
 
     fun onContentChange(newContent: String, context: android.content.Context? = null) {
         val activeTabId = _state.value.activeTabId
@@ -73,17 +74,23 @@ class EditorViewModel : ViewModel() {
 
             val updatedTabs = _state.value.tabs.map {
                 if (it.id == activeTabId) {
+                    // Check if we should add an auto-version snapshot
+                    val history = if (it.history.isEmpty() || (currentTime - it.history.last().timestamp > VERSION_HISTORY_DEBOUNCE_MS)) {
+                        (it.history + VersionItem(content = newContent)).takeLast(20)
+                    } else it.history
+
                     it.copy(
                         content = newContent,
                         isSaved = false,
                         wordCount = countWords(newContent),
-                        outline = extractOutline(newContent)
+                        outline = extractOutline(newContent),
+                        history = history
                     )
                 } else it
             }
             _state.value = _state.value.copy(tabs = updatedTabs)
             
-            // Auto Save
+            // Auto Save to File
             autoSaveJob?.cancel()
             if (context != null && activeTab.filePath != null) {
                 autoSaveJob = viewModelScope.launch {

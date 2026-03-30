@@ -12,6 +12,11 @@ import com.itextpdf.html2pdf.HtmlConverter
 import java.io.File
 import java.io.FileOutputStream
 
+import android.content.ContentValues
+import android.provider.MediaStore
+import android.net.Uri
+import android.os.Build
+
 object ExportUtils {
 
     private val options = MutableDataSet().apply {
@@ -23,10 +28,29 @@ object ExportUtils {
     private val parser = Parser.builder(options).build()
     private val renderer = HtmlRenderer.builder(options).build()
 
-    private fun getExportDir(): File {
-        val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "MarkPad")
-        if (!dir.exists()) dir.mkdirs()
-        return dir
+    private fun saveToPublicDownloads(context: Context, fileName: String, mimeType: String, contentWriter: (java.io.OutputStream) -> Unit) {
+        try {
+            val resolver = context.contentResolver
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/MarkPad")
+                }
+            }
+
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            if (uri != null) {
+                resolver.openOutputStream(uri)?.use { outputStream ->
+                    contentWriter(outputStream)
+                }
+                Toast.makeText(context, "导出成功: Downloads/MarkPad/$fileName", Toast.LENGTH_LONG).show()
+            } else {
+                throw Exception("无法创建文件")
+            }
+        } catch (e: Exception) {
+            Toast.makeText(context, "导出失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun markdownToHtml(markdown: String): String {
@@ -102,38 +126,26 @@ object ExportUtils {
     }
 
     fun exportToPdf(context: Context, markdown: String, fileName: String) {
-        try {
-            val file = File(getExportDir(), if (fileName.endsWith(".pdf")) fileName else "$fileName.pdf")
-            val html = markdownToHtml(markdown)
-            FileOutputStream(file).use { outputStream ->
-                HtmlConverter.convertToPdf(html, outputStream)
-            }
-            Toast.makeText(context, "导出成功: ${file.absolutePath}", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(context, "导出 PDF 失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        val finalName = if (fileName.endsWith(".pdf")) fileName else "$fileName.pdf"
+        val html = markdownToHtml(markdown)
+        saveToPublicDownloads(context, finalName, "application/pdf") { outputStream ->
+            HtmlConverter.convertToPdf(html, outputStream)
         }
     }
 
     fun exportToHtml(context: Context, markdown: String, fileName: String) {
-        try {
-            val file = File(getExportDir(), if (fileName.endsWith(".html")) fileName else "$fileName.html")
-            val html = markdownToHtml(markdown)
-            file.writeText(html)
-            Toast.makeText(context, "导出成功: ${file.absolutePath}", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(context, "导出 HTML 失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        val finalName = if (fileName.endsWith(".html")) fileName else "$fileName.html"
+        val html = markdownToHtml(markdown)
+        saveToPublicDownloads(context, finalName, "text/html") { outputStream ->
+            outputStream.write(html.toByteArray())
         }
     }
 
     fun exportToDocx(context: Context, markdown: String, fileName: String) {
-        try {
-            val file = File(getExportDir(), if (fileName.endsWith(".docx")) fileName else "$fileName.docx")
-            // 简化版：Docx 本质是带样式的 XML，这里先用 HTML 伪装或后续集成 POI
-            val html = markdownToHtml(markdown)
-            file.writeText(html) // 很多 Office 软件支持直接打开 HTML 格式的 Doc
-            Toast.makeText(context, "导出成功 (HTML兼容模式): ${file.absolutePath}", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(context, "导出 Word 失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        val finalName = if (fileName.endsWith(".docx")) fileName else "$fileName.docx"
+        val html = markdownToHtml(markdown)
+        saveToPublicDownloads(context, finalName, "application/vnd.openxmlformats-officedocument.wordprocessingml.document") { outputStream ->
+            outputStream.write(html.toByteArray())
         }
     }
 }
