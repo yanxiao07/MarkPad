@@ -20,14 +20,12 @@ jobs:
 
       - name: Build with Gradle
         run: |
-          # 现场生成环境，这是最稳妥的办法
-          gradle wrapper --gradle-version 8.2
           chmod +x gradlew
-          # 核心编译指令：跳过所有测试和检查，直奔 APK
-          ./gradlew assembleDebug --no-daemon -x test -x lint
+          # 核心编译指令：先 clean，再编译
+          ./gradlew clean assembleDebug --no-daemon -x test -x lint
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MarkPad-v1.1.0-Fixed
-          path: app/build/outputs/apk/debug/*.apk
+          name: MarkPad-ULTRA-v1.2.0
+          path: app/build/outputs/apk/debug/MarkPad_*.apk

@@ -33,12 +33,17 @@ fun EditorScreen(
     var textFieldValue by remember { mutableStateOf(TextFieldValue(state.content)) }
     var showMenu by remember { mutableStateOf(false) }
 
-    // Sync state to local value if changed from outside (undo/redo/load)
+    // Sync state to local value ONLY if changed from outside (undo/redo/load)
     LaunchedEffect(state.content) {
         if (state.content != textFieldValue.text) {
-            textFieldValue = TextFieldValue(
+            textFieldValue = textFieldValue.copy(
                 text = state.content,
-                selection = androidx.compose.ui.text.TextRange(state.content.length)
+                // Only move cursor to end if it's a completely new file/load
+                selection = if (textFieldValue.text.isEmpty()) {
+                    androidx.compose.ui.text.TextRange(state.content.length)
+                } else {
+                    textFieldValue.selection
+                }
             )
         }
     }
@@ -47,10 +52,17 @@ fun EditorScreen(
         topBar = {
             TopAppBar(
                 title = { 
-                    Text(
-                        state.filePath?.let { java.io.File(it).name } ?: stringResource(R.string.untitled),
-                        style = MaterialTheme.typography.titleMedium
-                    ) 
+                    Column {
+                        Text(
+                            state.filePath?.let { java.io.File(it).name } ?: stringResource(R.string.untitled),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            "版本: 1.2.0-ULTRA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onToggleSidebar) {

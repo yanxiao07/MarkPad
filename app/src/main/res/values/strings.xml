@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MarkPad</string>
+    <string name="app_name">MarkPad Pro</string>
     <string name="new_file">新建文档</string>
     <string name="open_file">打开文件</string>
     <string name="settings">设置</string>
