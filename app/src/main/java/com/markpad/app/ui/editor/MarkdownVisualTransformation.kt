@@ -21,7 +21,6 @@ import com.vladsch.flexmark.ext.tables.*
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.ast.Node
 import com.vladsch.flexmark.util.data.MutableDataSet
-import com.vladsch.flexmark.util.ast.ThematicBreak
 
 class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTransformation {
 

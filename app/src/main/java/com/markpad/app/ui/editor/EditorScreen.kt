@@ -120,7 +120,7 @@ fun EditorScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                "版本: 1.5.1-MYTHIC",
+                                "版本: 1.5.2-DIVINE",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary
                             )
@@ -330,12 +330,13 @@ fun EditorScreen(
                         .onKeyEvent { handleShortcut(it) }
                         .padding(16.dp)
                         .androidx.compose.ui.input.pointer.pointerInput(Unit) {
-                            androidx.compose.foundation.gestures.detectTransformGestures { _, _, zoom, _ ->
+                            androidx.compose.foundation.gestures.detectTransformGestures { _: androidx.compose.ui.geometry.Offset, _: androidx.compose.ui.geometry.Offset, zoom: Float, _: Float ->
                                 if (zoom != 1f) {
-                                    baseFontSize *= zoom
+                                    val newSize = baseFontSize * zoom
                                     // 限制字体范围
-                                    if (baseFontSize < 10f) baseFontSize = 10f
-                                    if (baseFontSize > 40f) baseFontSize = 40f
+                                    if (newSize in 10f..40f) {
+                                        baseFontSize = newSize
+                                    }
                                 }
                             }
                         },

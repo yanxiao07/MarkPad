@@ -35,5 +35,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MarkPad-MYTHIC-v1.5.1
+          name: MarkPad-DIVINE-v1.5.2
           path: app/build/outputs/apk/debug/MarkPad_*.apk
