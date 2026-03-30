@@ -133,9 +133,8 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
             }
             is TaskListItem -> {
                 // 待办列表处理
-                val marker = node.marker
+                val marker = node.openingMarker
                 if (marker.isNotNull) {
-                    // 可以根据状态显示不同的颜色或样式，这里暂时只隐藏原始符号
                     builder.addStyle(hideStyle, marker.startOffset, marker.endOffset)
                 }
             }

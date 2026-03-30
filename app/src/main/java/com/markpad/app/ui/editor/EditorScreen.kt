@@ -1,6 +1,9 @@
 package com.markpad.app.ui.editor
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -430,7 +433,8 @@ fun HistoryDialog(
                 Text("暂无保存记录")
             } else {
                 LazyColumn {
-                    items(items.reversed()) { item ->
+                    val reversedList: List<VersionItem> = items.reversed()
+                    items(reversedList) { item ->
                         ListItem(
                             headlineContent = { 
                                 Text(java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(item.timestamp))) 
