@@ -20,6 +20,10 @@ jobs:
 
       - name: Build with Gradle
         run: |
+          # 如果没有 gradlew，现场生成一个，这是最保险的办法
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 8.2
+          fi
           chmod +x gradlew
           # 核心编译指令：先 clean，再编译
           ./gradlew clean assembleDebug --no-daemon -x test -x lint
