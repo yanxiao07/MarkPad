@@ -67,6 +67,9 @@ fun EditorScreen(
                     IconButton(onClick = onPreview) {
                         Icon(Icons.Default.Visibility, contentDescription = "预览")
                     }
+                    IconButton(onClick = onSave) {
+                        Icon(Icons.Default.Save, contentDescription = "保存")
+                    }
                     IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "更多")
                     }

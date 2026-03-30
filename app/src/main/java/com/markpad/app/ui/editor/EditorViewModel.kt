@@ -109,23 +109,29 @@ class EditorViewModel : ViewModel() {
     }
 
     fun saveFile(context: android.content.Context, uri: android.net.Uri? = null) {
-        val targetUri = uri ?: _state.value.filePath?.let { android.net.Uri.parse(it) }
+        val pathOrUri = _state.value.filePath
         
-        if (targetUri == null) {
-            // Need to trigger SAF CreateDocument in Activity
-            return
-        }
-
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                context.contentResolver.openOutputStream(targetUri, "wt")?.use { outputStream ->
-                    outputStream.write(_state.value.content.toByteArray())
-                }
-                withContext(Dispatchers.Main) {
-                    _state.value = _state.value.copy(
-                        isSaved = true,
-                        filePath = targetUri.toString()
-                    )
+                // 如果传入了新的 URI (SAF)，或者路径是 content:// 开头的 (之前导入的)
+                if (uri != null || (pathOrUri != null && pathOrUri.startsWith("content://"))) {
+                    val targetUri = uri ?: android.net.Uri.parse(pathOrUri)
+                    context.contentResolver.openOutputStream(targetUri, "rwt")?.use { outputStream ->
+                        outputStream.write(_state.value.content.toByteArray())
+                    }
+                    withContext(Dispatchers.Main) {
+                        _state.value = _state.value.copy(
+                            isSaved = true,
+                            filePath = targetUri.toString()
+                        )
+                    }
+                } else if (pathOrUri != null) {
+                    // 普通文件路径 (内部存储)
+                    val file = File(pathOrUri)
+                    file.writeText(_state.value.content)
+                    withContext(Dispatchers.Main) {
+                        _state.value = _state.value.copy(isSaved = true)
+                    }
                 }
             } catch (e: Exception) {
                 // Handle error
