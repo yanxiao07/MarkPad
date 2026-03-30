@@ -11,6 +11,8 @@ import com.vladsch.flexmark.ast.*
 import com.vladsch.flexmark.ext.gfm.strikethrough.Strikethrough
 import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension
 import com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension
+import com.vladsch.flexmark.ext.gfm.tasklist.TaskListItem
+import com.vladsch.flexmark.ext.tables.TableBlock
 import com.vladsch.flexmark.ext.tables.TablesExtension
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.ast.Node
@@ -120,6 +122,26 @@ class MarkdownVisualTransformation(private val theme: MarkdownTheme) : VisualTra
                 val closing = node.closingMarker
                 if (opening.isNotNull) builder.addStyle(hideStyle, opening.startOffset, opening.endOffset)
                 if (closing.isNotNull) builder.addStyle(hideStyle, closing.startOffset, closing.endOffset)
+            }
+            is Strikethrough -> {
+                builder.addStyle(theme.strikethrough, start, end)
+                // 隐藏 ~~ 符号
+                val opening = node.openingMarker
+                val closing = node.closingMarker
+                if (opening.isNotNull) builder.addStyle(hideStyle, opening.startOffset, opening.endOffset)
+                if (closing.isNotNull) builder.addStyle(hideStyle, closing.startOffset, closing.endOffset)
+            }
+            is TaskListItem -> {
+                // 待办列表处理
+                val marker = node.marker
+                if (marker.isNotNull) {
+                    // 可以根据状态显示不同的颜色或样式，这里暂时只隐藏原始符号
+                    builder.addStyle(hideStyle, marker.startOffset, marker.endOffset)
+                }
+            }
+            is TableBlock -> {
+                // 表格块基础样式
+                builder.addStyle(theme.code.copy(background = Color.LightGray.copy(alpha = 0.1f)), start, end)
             }
         }
 

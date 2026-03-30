@@ -2,7 +2,8 @@ package com.markpad.app.ui.editor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +17,14 @@ data class EditorState(
     val filePath: String? = null,
     val isSaved: Boolean = true,
     val wordCount: Int = 0,
-    val theme: MarkdownTheme = MarkdownThemes.Default
+    val theme: MarkdownTheme = MarkdownThemes.Default,
+    val outline: List<OutlineItem> = emptyList()
+)
+
+data class OutlineItem(
+    val title: String,
+    val level: Int,
+    val offset: Int
 )
 
 class EditorViewModel : ViewModel() {
@@ -27,8 +35,11 @@ class EditorViewModel : ViewModel() {
     private val redoStack = Stack<String>()
     private var lastSaveTime = 0L
     private val UNDO_DEBOUNCE_MS = 1000L // 1秒内的连续输入只存一次 undo
+    
+    private var autoSaveJob: Job? = null
+    private val AUTO_SAVE_DELAY_MS = 2000L // 2秒无输入自动保存
 
-    fun onContentChange(newContent: String) {
+    fun onContentChange(newContent: String, context: android.content.Context? = null) {
         val oldContent = _state.value.content
         if (oldContent != newContent) {
             val currentTime = System.currentTimeMillis()
@@ -40,9 +51,39 @@ class EditorViewModel : ViewModel() {
             _state.value = _state.value.copy(
                 content = newContent,
                 isSaved = false,
-                wordCount = countWords(newContent)
+                wordCount = countWords(newContent),
+                outline = extractOutline(newContent)
             )
+            
+            // 自动保存逻辑
+            autoSaveJob?.cancel()
+            if (context != null && _state.value.filePath != null) {
+                autoSaveJob = viewModelScope.launch {
+                    delay(AUTO_SAVE_DELAY_MS)
+                    saveFile(context)
+                }
+            }
         }
+    }
+
+    private fun extractOutline(content: String): List<OutlineItem> {
+        val outline = mutableListOf<OutlineItem>()
+        content.lines().forEachIndexed { index, line ->
+            if (line.startsWith("#")) {
+                val match = Regex("^(#+)\\s+(.*)$").find(line)
+                match?.let {
+                    val level = it.groupValues[1].length
+                    val title = it.groupValues[2]
+                    // 计算字符偏移量
+                    var offset = 0
+                    for (i in 0 until index) {
+                        offset += content.lines()[i].length + 1
+                    }
+                    outline.add(OutlineItem(title, level, offset))
+                }
+            }
+        }
+        return outline
     }
 
     fun createNewFile() {
@@ -90,6 +131,7 @@ class EditorViewModel : ViewModel() {
                     )
                     undoStack.clear()
                     redoStack.clear()
+                    // 自动更新最近文件等逻辑可以在这里扩展
                 }
             } catch (e: Exception) {
                 // Handle error
@@ -98,14 +140,16 @@ class EditorViewModel : ViewModel() {
     }
 
     fun importContent(name: String, content: String, uri: String? = null) {
-        _state.value = EditorState(
-            content = content,
-            filePath = uri, // Store URI for SAF-opened files
-            isSaved = false,
-            wordCount = countWords(content)
-        )
-        undoStack.clear()
-        redoStack.clear()
+        viewModelScope.launch(Dispatchers.Main) {
+            _state.value = EditorState(
+                content = content,
+                filePath = uri, // Store URI for SAF-opened files
+                isSaved = true, // 刚导入的文件视为已保存状态，除非修改
+                wordCount = countWords(content)
+            )
+            undoStack.clear()
+            redoStack.clear()
+        }
     }
 
     fun saveFile(context: android.content.Context, uri: android.net.Uri? = null) {

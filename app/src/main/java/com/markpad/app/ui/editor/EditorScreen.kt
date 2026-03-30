@@ -32,6 +32,7 @@ fun EditorScreen(
     val context = LocalContext.current
     var textFieldValue by remember { mutableStateOf(TextFieldValue(state.content)) }
     var showMenu by remember { mutableStateOf(false) }
+    var showOutline by remember { mutableStateOf(false) } // 大纲控制
 
     // Sync state to local value ONLY if changed from outside (undo/redo/load)
     LaunchedEffect(state.content) {
@@ -46,6 +47,19 @@ fun EditorScreen(
                 }
             )
         }
+    }
+
+    if (showOutline) {
+        OutlineDialog(
+            items = state.outline,
+            onDismiss = { showOutline = false },
+            onNavigate = { offset ->
+                textFieldValue = textFieldValue.copy(
+                    selection = androidx.compose.ui.text.TextRange(offset)
+                )
+                showOutline = false
+            }
+        )
     }
 
     Scaffold(
@@ -78,6 +92,9 @@ fun EditorScreen(
                     }
                     IconButton(onClick = onPreview) {
                         Icon(Icons.Default.Visibility, contentDescription = "预览")
+                    }
+                    IconButton(onClick = { showOutline = true }) {
+                        Icon(Icons.Default.List, contentDescription = "大纲")
                     }
                     IconButton(onClick = onSave) {
                         Icon(Icons.Default.Save, contentDescription = "保存")
@@ -159,7 +176,7 @@ fun EditorScreen(
                 onAction = { action ->
                     val (newText, newSelection) = applyMarkdownAction(textFieldValue, action)
                     textFieldValue = TextFieldValue(newText, newSelection)
-                    viewModel.onContentChange(newText)
+                    viewModel.onContentChange(newText, context)
                 }
             )
 
@@ -168,7 +185,7 @@ fun EditorScreen(
                 value = textFieldValue,
                 onValueChange = {
                     textFieldValue = it
-                    viewModel.onContentChange(it.text)
+                    viewModel.onContentChange(it.text, context)
                 },
                 modifier = Modifier
                     .fillMaxSize()
@@ -199,11 +216,17 @@ fun MarkdownToolbar(onAction: (String) -> Unit) {
     ) {
         ToolbarButton(Icons.Default.FormatBold, "加粗") { onAction("bold") }
         ToolbarButton(Icons.Default.FormatItalic, "斜体") { onAction("italic") }
-        ToolbarButton(Icons.Default.FormatListBulleted, "列表") { onAction("list") }
+        ToolbarButton(Icons.Default.StrikethroughS, "删除线") { onAction("strikethrough") }
+        ToolbarButton(Icons.Default.FormatListBulleted, "无序列表") { onAction("list") }
+        ToolbarButton(Icons.Default.FormatListNumbered, "有序列表") { onAction("ordered_list") }
+        ToolbarButton(Icons.Default.CheckBox, "待办列表") { onAction("task") }
         ToolbarButton(Icons.Default.FormatQuote, "引用") { onAction("quote") }
-        ToolbarButton(Icons.Default.Code, "代码") { onAction("code") }
+        ToolbarButton(Icons.Default.Code, "行内代码") { onAction("code") }
+        ToolbarButton(Icons.Default.IntegrationInstructions, "代码块") { onAction("fenced_code") }
         ToolbarButton(Icons.Default.Link, "链接") { onAction("link") }
+        ToolbarButton(Icons.Default.TableChart, "表格") { onAction("table") }
         ToolbarButton(Icons.Default.Title, "标题") { onAction("h1") }
+        ToolbarButton(Icons.Default.HorizontalRule, "分割线") { onAction("hr") }
     }
 }
 
@@ -222,11 +245,17 @@ private fun applyMarkdownAction(current: TextFieldValue, action: String): Pair<S
     val (newText, offset) = when (action) {
         "bold" -> "**$selectedText**" to 2
         "italic" -> "_${selectedText}_" to 1
+        "strikethrough" -> "~~$selectedText~~" to 2
         "code" -> "`$selectedText`" to 1
+        "fenced_code" -> "\n```\n$selectedText\n```" to 5
         "link" -> "[$selectedText](url)" to 1
         "h1" -> "\n# $selectedText" to 3
         "quote" -> "\n> $selectedText" to 3
         "list" -> "\n- $selectedText" to 3
+        "ordered_list" -> "\n1. $selectedText" to 4
+        "task" -> "\n- [ ] $selectedText" to 6
+        "hr" -> "\n---\n" to 5
+        "table" -> "\n| Header | Header |\n| --- | --- |\n| Cell | Cell |\n" to 3
         else -> selectedText to 0
     }
 
@@ -238,4 +267,42 @@ private fun applyMarkdownAction(current: TextFieldValue, action: String): Pair<S
     }
 
     return updatedText to androidx.compose.ui.text.TextRange(newCursorPos)
+}
+
+@Composable
+fun OutlineDialog(
+    items: List<OutlineItem>,
+    onDismiss: () -> Unit,
+    onNavigate: (Int) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("文档大纲") },
+        text = {
+            if (items.isEmpty()) {
+                Text("暂无标题")
+            } else {
+                LazyColumn {
+                    items(items) { item ->
+                        Text(
+                            text = item.title,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigate(item.offset) }
+                                .padding(vertical = 8.dp, horizontal = (item.level * 8).dp),
+                            style = when (item.level) {
+                                1 -> MaterialTheme.typography.titleMedium
+                                2 -> MaterialTheme.typography.titleSmall
+                                else -> MaterialTheme.typography.bodyMedium
+                            },
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("关闭") }
+        }
+    )
 }

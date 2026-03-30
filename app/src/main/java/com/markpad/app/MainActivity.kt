@@ -116,7 +116,8 @@ fun MainLayout(
                         FileManagerScreen(
                             viewModel = fileManagerViewModel,
                             onFileSelected = { file -> editorViewModel.loadFile(file) },
-                            onNewFile = { editorViewModel.createNewFile() }
+                            onNewFile = { editorViewModel.createNewFile() },
+                            onClose = { isSidebarVisible = false } // 修复关闭按钮
                         )
                     }
                     Divider(modifier = Modifier.fillMaxHeight().width(1.dp))
@@ -143,7 +144,8 @@ fun MainLayout(
                             onNewFile = { 
                                 editorViewModel.createNewFile()
                                 scope.launch { drawerState.close() }
-                            }
+                            },
+                            onClose = { scope.launch { drawerState.close() } } // 修复关闭按钮
                         )
                     }
                 }
